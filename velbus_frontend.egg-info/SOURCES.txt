@@ -1,0 +1,8 @@
+README.md
+pyproject.toml
+velbus_frontend/__init__.py
+velbus_frontend.egg-info/PKG-INFO
+velbus_frontend.egg-info/SOURCES.txt
+velbus_frontend.egg-info/dependency_links.txt
+velbus_frontend.egg-info/top_level.txt
+velbus_frontend/dist/velbus-panel.js

@@ -1,0 +1,18 @@
+Metadata-Version: 2.4
+Name: velbus-frontend
+Version: 2026.7.26
+Summary: Home Assistant config panel frontend for Velbus.
+Author-email: Maikel Punie <maikel.punie@gmail.com>
+License: MIT
+Project-URL: Source Code, https://github.com/Cereal2nd/velbus-frontend
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Topic :: Home Automation
+Requires-Python: >=3.13
+Description-Content-Type: text/markdown
+
+# Velbus config panel frontend
+
+Static web component assets shipped with the `velbus-frontend` PyPI package for the Home Assistant Velbus integration config panel.
