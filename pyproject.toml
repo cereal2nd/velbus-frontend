@@ -29,4 +29,4 @@ include-package-data = true
 include = ["velbus_frontend*"]
 
 [tool.setuptools.package-data]
-velbus_frontend = ["dist/*"]
+velbus_frontend = ["dist/**/*"]
