@@ -4,6 +4,7 @@ import {
   findChannelEnable,
   findChannelNames,
   formatSource,
+  isProgrammedSlot,
   sourceChannelOptions,
 } from "./base.js";
 
@@ -95,7 +96,7 @@ export function render(ctx) {
   const actionTable = findActionTable(sections);
   const channelEnable = findChannelEnable(sections);
   const channels = moduleData.channels || {};
-  const actions = (actionSlots || []).filter((slot) => !slot.empty);
+  const actions = (actionSlots || []).filter(isProgrammedSlot);
   const selectedChannelLabel = channelLabel(actionChannel, sections, channels);
   const selectedSupportsEnable =
     channelEnable?.channels?.includes(actionChannel) ||

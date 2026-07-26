@@ -45,3 +45,11 @@ export function findChannelNames(sections) {
 export function findChannelEnable(sections) {
   return sections.find((section) => section.type === "channel_enable");
 }
+
+export function isProgrammedSlot(slot) {
+  if (slot.empty) {
+    return false;
+  }
+  const source = slot.source_address;
+  return source != null && source !== 0 && source !== 255;
+}
