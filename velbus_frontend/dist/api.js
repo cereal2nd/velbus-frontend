@@ -48,6 +48,15 @@ export async function saveChannelEnabled(callWs, address, channel, enabled) {
   });
 }
 
+export async function saveChannelContact(callWs, address, channel, value) {
+  return callWs("velbus/config_panel/module/config/set", {
+    address,
+    channel,
+    key: "contact",
+    value,
+  });
+}
+
 export async function programAction(
   callWs,
   address,

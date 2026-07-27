@@ -3,6 +3,7 @@ import {
   findActionTable,
   findChannelEnable,
   findChannelNames,
+  findContact,
   formatSource,
   isProgrammedSlot,
   sourceChannelOptions,
@@ -95,6 +96,7 @@ export function render(ctx) {
   const channelNames = findChannelNames(sections);
   const actionTable = findActionTable(sections);
   const channelEnable = findChannelEnable(sections);
+  const contact = findContact(sections);
   const channels = moduleData.channels || {};
   const actions = (actionSlots || []).filter(isProgrammedSlot);
   const selectedChannelLabel = channelLabel(actionChannel, sections, channels);
@@ -195,6 +197,27 @@ export function render(ctx) {
                     : ""
                 }
                 ${
+                  contact?.channels?.includes(actionChannel)
+                    ? `<label class="channel-contact">
+                        <span>Contact</span>
+                        <select
+                          data-channel-contact="${actionChannel}"
+                          ${editable ? "" : "disabled"}
+                        >
+                          ${(contact.options || ["NO", "NC"])
+                            .map((option) => {
+                              const current =
+                                channels[String(actionChannel)]?.contact || "NO";
+                              return `<option value="${option}" ${
+                                option === current ? "selected" : ""
+                              }>${option}</option>`;
+                            })
+                            .join("")}
+                        </select>
+                      </label>`
+                    : ""
+                }
+                ${
                   selectedSupportsEnable
                     ? `<label class="channel-enable">
                         <input
@@ -245,8 +268,9 @@ export function render(ctx) {
             </section>
           </div>
           ${renderAddActionDialog(dialogCtx)}`
-        : channelNames
-          ? `<section class="card">
+        : `${
+            channelNames
+              ? `<section class="card">
               <h3>Channel names</h3>
               ${channelNames.channels
                 .map((channel) => {
@@ -265,7 +289,37 @@ export function render(ctx) {
                 })
                 .join("")}
             </section>`
-          : ""
+              : ""
+          }${
+            contact
+              ? `<section class="card">
+              <h3>Contact type</h3>
+              ${contact.channels
+                .map((channel) => {
+                  const live = channels[String(channel)] || {};
+                  const current = live.contact || "NO";
+                  const label = channelLabel(channel, sections, channels);
+                  return `<label>
+                    <span>${label}</span>
+                    <select
+                      data-channel-contact="${channel}"
+                      ${editable ? "" : "disabled"}
+                    >
+                      ${(contact.options || ["NO", "NC"])
+                        .map(
+                          (option) =>
+                            `<option value="${option}" ${
+                              option === current ? "selected" : ""
+                            }>${option}</option>`
+                        )
+                        .join("")}
+                    </select>
+                  </label>`;
+                })
+                .join("")}
+            </section>`
+              : ""
+          }`
     }`;
 }
 
@@ -325,6 +379,15 @@ export function bind(root, handlers) {
       handlers.onSaveChannelEnabled(
         Number(event.target.dataset.channelEnable),
         event.target.checked
+      );
+    });
+  });
+
+  root.querySelectorAll("[data-channel-contact]").forEach((element) => {
+    element.addEventListener("change", (event) => {
+      handlers.onSaveChannelContact(
+        Number(event.target.dataset.channelContact),
+        event.target.value
       );
     });
   });

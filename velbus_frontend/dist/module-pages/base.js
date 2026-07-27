@@ -46,6 +46,10 @@ export function findChannelEnable(sections) {
   return sections.find((section) => section.type === "channel_enable");
 }
 
+export function findContact(sections) {
+  return sections.find((section) => section.type === "contact");
+}
+
 export function isProgrammedSlot(slot) {
   if (slot.empty) {
     return false;

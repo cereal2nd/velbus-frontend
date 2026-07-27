@@ -7,6 +7,7 @@ import {
   loadModule,
   loadModules,
   programAction,
+  saveChannelContact,
   saveChannelEnabled,
   saveChannelName,
 } from "./api.js";
@@ -483,6 +484,20 @@ class VelbusPanel extends HTMLElement {
           );
           await this._loadModulePage(this._moduleAddress);
           await this._refreshActions();
+        });
+      },
+      onSaveChannelContact: async (channel, value) => {
+        if (this._modulePageBusy()) {
+          return;
+        }
+        await this._withModuleBusy(async () => {
+          await saveChannelContact(
+            this._callWs,
+            this._moduleAddress,
+            channel,
+            value
+          );
+          await this._loadModulePage(this._moduleAddress);
         });
       },
     });
