@@ -8,8 +8,8 @@ import {
   sourceChannelOptions,
 } from "./base.js";
 
-function canEdit(memoryWriteMode, interactionsDisabled) {
-  return memoryWriteMode && !interactionsDisabled;
+function canEdit(advancedMode, interactionsDisabled) {
+  return advancedMode && !interactionsDisabled;
 }
 
 function renderAddActionDialog(ctx) {
@@ -17,14 +17,14 @@ function renderAddActionDialog(ctx) {
     showAddActionDialog,
     actionTable,
     modules,
-    memoryWriteMode,
+    advancedMode,
     interactionsDisabled,
     sourceModuleAddress,
   } = ctx;
   if (!showAddActionDialog || !actionTable) {
     return "";
   }
-  const editable = canEdit(memoryWriteMode, interactionsDisabled);
+  const editable = canEdit(advancedMode, interactionsDisabled);
   const sourceAddress =
     sourceModuleAddress ?? (modules.length ? modules[0].address : null);
   return `
@@ -79,7 +79,7 @@ export function render(ctx) {
     actionSlots,
     loadingActions,
     interactionsDisabled,
-    memoryWriteMode,
+    advancedMode,
     showAddActionDialog,
     sourceModuleAddress,
   } = ctx;
@@ -88,7 +88,7 @@ export function render(ctx) {
     return "";
   }
 
-  const editable = canEdit(memoryWriteMode, interactionsDisabled);
+  const editable = canEdit(advancedMode, interactionsDisabled);
 
   const schema = moduleData.schema || { sections: [] };
   const sections = schema.sections || [];
@@ -115,7 +115,7 @@ export function render(ctx) {
     showAddActionDialog,
     actionTable,
     modules,
-    memoryWriteMode,
+    advancedMode,
     interactionsDisabled,
     sourceModuleAddress,
   };
@@ -135,8 +135,8 @@ export function render(ctx) {
       <h2>${moduleData.name}</h2>
       <p class="muted">${metaParts.join(" · ")}</p>
       ${
-        !memoryWriteMode
-          ? `<p class="warning">Memory write mode is disabled. Enable it in the Velbus integration configuration to program module memory.</p>`
+        !advancedMode
+          ? `<p class="warning">Advanced mode is disabled. Enable it in the Velbus integration configuration to program module memory.</p>`
           : ""
       }
     </section>

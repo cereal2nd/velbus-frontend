@@ -26,7 +26,7 @@ class VelbusPanel extends HTMLElement {
     this._route = undefined;
     this._configEntryId = undefined;
     this._callWs = undefined;
-    this._memoryWriteMode = false;
+    this._advancedMode = false;
     this._modules = [];
     this._moduleAddress = null;
     this._moduleData = null;
@@ -165,7 +165,7 @@ class VelbusPanel extends HTMLElement {
     this._callWs = createApi(this._hass, this._configEntryId);
     try {
       const base = await loadBaseData(this._callWs);
-      this._memoryWriteMode = base.memory_write_mode;
+      this._advancedMode = base.advanced_mode;
       await this._refreshModules();
       await this._onRouteChange();
     } catch (error) {
@@ -374,7 +374,7 @@ class VelbusPanel extends HTMLElement {
       actionSlots: this._actionSlots,
       loadingActions: this._loadingActions,
       interactionsDisabled: this._modulePageBusy(),
-      memoryWriteMode: this._memoryWriteMode,
+      advancedMode: this._advancedMode,
       showAddActionDialog: this._showAddActionDialog,
       sourceModuleAddress: this._sourceModuleAddress,
     });
