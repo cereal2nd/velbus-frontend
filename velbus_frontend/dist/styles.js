@@ -15,6 +15,7 @@ export const PANEL_STYLES = `
     -webkit-font-smoothing: antialiased;
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   .subpage {
     display: flex;
     flex-direction: column;
@@ -142,6 +143,8 @@ export const PANEL_STYLES = `
     color: var(--secondary-text-color, #727272);
   }
   .search-row input {
+    flex: 1 1 auto;
+    min-width: 0;
     border: none;
     background: transparent;
     padding: 12px 0;
@@ -151,7 +154,65 @@ export const PANEL_STYLES = `
   .search-row input:focus-visible {
     outline: none;
   }
+  .search-actions {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+    margin-inline-start: 4px;
+  }
+  .search-row .icon-button {
+    color: var(--secondary-text-color, #727272);
+  }
   .list { display: flex; flex-direction: column; }
+  .module-group {
+    display: block;
+    margin: 0;
+    border: none;
+  }
+  .module-group + .module-group {
+    border-top: 1px solid var(--divider-color, rgba(0, 0, 0, 0.12));
+  }
+  .module-group-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 48px;
+    padding: 8px 16px;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--primary-text-color, #212121);
+    background: color-mix(in srgb, var(--primary-text-color, #212121) 4%, transparent);
+  }
+  .module-group-header::-webkit-details-marker,
+  .module-group-header::marker {
+    display: none;
+    content: "";
+  }
+  .module-group-header:hover {
+    background: color-mix(in srgb, var(--primary-text-color, #212121) 8%, transparent);
+  }
+  .module-group-header .item-icon {
+    width: 32px;
+    height: 32px;
+  }
+  .module-group-header .item-title {
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .module-group[open] .module-group-header {
+    border-bottom: 1px solid var(--divider-color, rgba(0, 0, 0, 0.12));
+  }
+  .module-group-header .group-chevron {
+    display: inline-flex;
+    color: var(--secondary-text-color, #727272);
+    transition: transform 0.15s ease;
+  }
+  .module-group[open] .group-chevron {
+    transform: rotate(180deg);
+  }
   .list-item,
   button.list-item,
   button.module-item,

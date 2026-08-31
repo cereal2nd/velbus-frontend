@@ -5,6 +5,12 @@ export const ICONS = {
     "M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z",
   chevronRight:
     "M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z",
+  chevronDown:
+    "M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z",
+  unfoldMore:
+    "M12,18.17L8.83,15L7.42,16.41L12,21L16.59,16.41L15.17,15M12,5.83L15.17,9L16.58,7.59L12,3L7.41,7.59L8.83,9L12,5.83Z",
+  unfoldLess:
+    "M7.41,18.59L8.83,20L12,16.83L15.17,20L16.59,18.58L12,14L7.41,18.59M16.59,5.41L15.17,4L12,7.17L8.83,4L7.41,5.41L12,10L16.59,5.41Z",
   plus: "M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z",
   close:
     "M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z",
@@ -30,6 +36,8 @@ export const ICONS = {
     "M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19M8,9H16V19H8V9M15.5,4L14.5,3H9.5L8.5,4H5V6H19V4H15.5Z",
   flash:
     "M11,15H6L13,1V9H18L11,23V15Z",
+  tablet:
+    "M19,18H5V6H19M21,4H3C1.89,4 1,4.89 1,6V18A2,2 0 0,0 3,20H21A2,2 0 0,0 23,18V6C23,4.89 22.1,4 21,4Z",
 };
 
 export function escapeHtml(value) {
@@ -68,4 +76,70 @@ export function iconForModule(typeName = "") {
     return ICONS.gestureTap;
   }
   return ICONS.memory;
+}
+
+export const MODULE_GROUP_ORDER = [
+  "pushbuttons",
+  "glass",
+  "relays",
+  "dimmers",
+  "blinds",
+  "inputs",
+  "sensors",
+  "other",
+];
+
+export const MODULE_GROUPS = {
+  pushbuttons: { label: "Push buttons", icon: ICONS.gestureTap },
+  glass: { label: "Glass panels", icon: ICONS.tablet },
+  relays: { label: "Relays", icon: ICONS.toggle },
+  dimmers: { label: "Dimmers", icon: ICONS.lightbulb },
+  blinds: { label: "Blinds", icon: ICONS.shutter },
+  inputs: { label: "Inputs", icon: ICONS.flash },
+  sensors: { label: "Sensors", icon: ICONS.thermometer },
+  other: { label: "Other", icon: ICONS.memory },
+};
+
+export function groupForModule(typeName = "") {
+  const type = String(typeName).toUpperCase();
+  if (/GP|VMBEL|LCD/.test(type)) {
+    return "glass";
+  }
+  if (/PB|VMBKP|4PD/.test(type)) {
+    return "pushbuttons";
+  }
+  if (/RY|RELAY/.test(type)) {
+    return "relays";
+  }
+  if (/1BL|2BL|BLE|BLS|BLIND/.test(type)) {
+    return "blinds";
+  }
+  if (/DM|DC|DALI|DIM|LED/.test(type)) {
+    return "dimmers";
+  }
+  if (/PIR|1TS|1TC|METEO|4AN/.test(type)) {
+    return "sensors";
+  }
+  if (/IN|4RF|8IR|RFR/.test(type)) {
+    return "inputs";
+  }
+  return "other";
+}
+
+export function moduleSearchText(module) {
+  const address = Number(module.address);
+  const hex = address.toString(16).toUpperCase().padStart(2, "0");
+  const group = MODULE_GROUPS[groupForModule(module.type_name)];
+  return [
+    module.name,
+    module.type_name,
+    group?.label,
+    address,
+    hex,
+    `0x${hex}`,
+    formatAddress(address),
+  ]
+    .filter((part) => part !== undefined && part !== null && part !== "")
+    .join(" ")
+    .toLowerCase();
 }
