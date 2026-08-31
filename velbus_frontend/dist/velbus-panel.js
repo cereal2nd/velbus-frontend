@@ -17,6 +17,7 @@ import {
   resolveModulePageType,
 } from "./module-pages/registry.js";
 import { bindModulesList, renderModulesList } from "./pages/modules-list.js";
+import { escapeHtml, ICONS, svgIcon } from "./ui.js";
 
 class VelbusPanel extends HTMLElement {
   constructor() {
@@ -34,12 +35,23 @@ class VelbusPanel extends HTMLElement {
     this._modulePage = null;
     this._actionChannel = 1;
     this._actionSlots = [];
+    this._actionsLoadedChannel = null;
     this._sourceModuleAddress = null;
     this._showAddActionDialog = false;
     this._loading = false;
     this._loadingActions = false;
     this._moduleBusy = false;
     this._error = null;
+  }
+
+  connectedCallback() {
+    if (document.getElementById("velbus-panel-root-style")) {
+      return;
+    }
+    const style = document.createElement("style");
+    style.id = "velbus-panel-root-style";
+    style.textContent = "html, body { height: 100%; margin: 0; overflow: hidden; }";
+    document.head.appendChild(style);
   }
 
   set hass(hass) {
@@ -206,6 +218,7 @@ class VelbusPanel extends HTMLElement {
     this._loading = true;
     this._error = null;
     this._actionSlots = [];
+    this._actionsLoadedChannel = null;
     this._showAddActionDialog = false;
     this._render();
     try {
@@ -225,9 +238,14 @@ class VelbusPanel extends HTMLElement {
     }
     this._loading = false;
     this._render();
-    if (this._moduleData) {
-      await this._refreshActions();
+  }
+
+  async _reloadModuleMetadata() {
+    if (!this._moduleAddress) {
+      return;
     }
+    this._moduleData = await loadModule(this._callWs, this._moduleAddress);
+    this._render();
   }
 
   async _refreshActions() {
@@ -245,6 +263,7 @@ class VelbusPanel extends HTMLElement {
         this._moduleAddress,
         this._actionChannel
       );
+      this._actionsLoadedChannel = this._actionChannel;
     } catch (error) {
       this._error = String(error);
       this._actionSlots = [];
@@ -273,9 +292,21 @@ class VelbusPanel extends HTMLElement {
       "--warning-color",
       "--error-color",
       "--success-color",
+      "--info-color",
       "--text-primary-color",
+      "--app-header-background-color",
+      "--app-header-text-color",
+      "--app-header-border-bottom",
+      "--header-height",
+      "--ha-card-background",
+      "--ha-card-border-radius",
+      "--ha-card-border-width",
+      "--ha-card-border-color",
       "--ha-card-box-shadow",
+      "--ha-card-header-color",
+      "--ha-card-header-font-size",
       "--primary-font-family",
+      "--ha-font-family-body",
       "--input-fill-color",
       "--input-disabled-fill-color",
       "--input-ink-color",
@@ -284,6 +315,11 @@ class VelbusPanel extends HTMLElement {
       "--input-outlined-idle-border-color",
       "--input-outlined-hover-border-color",
       "--input-outlined-disabled-border-color",
+      "--mdc-text-field-fill-color",
+      "--switch-checked-button-color",
+      "--switch-checked-track-color",
+      "--switch-unchecked-button-color",
+      "--switch-unchecked-track-color",
     ];
 
     let parentStyles;
@@ -317,6 +353,10 @@ class VelbusPanel extends HTMLElement {
             "--primary-color": "#03a9f4",
             "--text-primary-color": "#ffffff",
             "--warning-color": "#f57c00",
+            "--error-color": "#db4437",
+            "--info-color": "#039be5",
+            "--app-header-background-color": "#111111",
+            "--app-header-text-color": "#e1e1e1",
             "--input-fill-color": "rgba(255, 255, 255, 0.05)",
             "--input-disabled-fill-color": "rgba(255, 255, 255, 0.02)",
             "--input-ink-color": "rgba(255, 255, 255, 0.87)",
@@ -326,6 +366,7 @@ class VelbusPanel extends HTMLElement {
             "--input-outlined-hover-border-color": "rgba(255, 255, 255, 0.87)",
             "--input-outlined-disabled-border-color": "rgba(255, 255, 255, 0.06)",
             "--ha-card-box-shadow": "none",
+            "--ha-card-border-radius": "12px",
           }
         : {
             "--primary-background-color": "#fafafa",
@@ -338,6 +379,10 @@ class VelbusPanel extends HTMLElement {
             "--primary-color": "#03a9f4",
             "--text-primary-color": "#ffffff",
             "--warning-color": "#f57c00",
+            "--error-color": "#db4437",
+            "--info-color": "#039be5",
+            "--app-header-background-color": "#fafafa",
+            "--app-header-text-color": "#212121",
             "--input-fill-color": "rgb(245, 245, 245)",
             "--input-disabled-fill-color": "rgb(250, 250, 250)",
             "--input-ink-color": "rgba(0, 0, 0, 0.87)",
@@ -346,18 +391,48 @@ class VelbusPanel extends HTMLElement {
             "--input-outlined-idle-border-color": "rgba(0, 0, 0, 0.38)",
             "--input-outlined-hover-border-color": "rgba(0, 0, 0, 0.87)",
             "--input-outlined-disabled-border-color": "rgba(0, 0, 0, 0.06)",
+            "--ha-card-box-shadow": "none",
+            "--ha-card-border-radius": "12px",
           };
       for (const [name, value] of Object.entries(fallbacks)) {
         root.style.setProperty(name, value);
       }
     }
 
+    document.documentElement.style.height = "100%";
+    document.body.style.height = "100%";
+    document.body.style.margin = "0";
     document.body.style.backgroundColor = getComputedStyle(root)
       .getPropertyValue("--primary-background-color")
       .trim();
     document.body.style.color = getComputedStyle(root)
       .getPropertyValue("--primary-text-color")
       .trim();
+  }
+
+  _toolbarTitle() {
+    const route = this._parseRoute();
+    if (route.page === "module") {
+      return this._moduleData?.name || "Module";
+    }
+    return "Velbus";
+  }
+
+  _onToolbarBack() {
+    const route = this._parseRoute();
+    if (route.page === "module") {
+      this._navigate("");
+      return;
+    }
+    this._goBackToIntegration();
+  }
+
+  _isInitialLoad() {
+    const route = this._parseRoute();
+    if (route.page === "list") {
+      return this._loading && !this._modules.length;
+    }
+    return this._loading && !this._moduleData;
   }
 
   _renderPageContent() {
@@ -373,6 +448,7 @@ class VelbusPanel extends HTMLElement {
       modules: this._modules,
       actionChannel: this._actionChannel,
       actionSlots: this._actionSlots,
+      actionsLoaded: this._actionsLoadedChannel === this._actionChannel,
       loadingActions: this._loadingActions,
       interactionsDisabled: this._modulePageBusy(),
       advancedMode: this._advancedMode,
@@ -395,9 +471,6 @@ class VelbusPanel extends HTMLElement {
       return;
     }
     this._modulePage.bind(contentRoot, {
-      onBack: () => {
-        this._navigate("");
-      },
       onSelectChannel: async (channel) => {
         if (this._modulePageBusy()) {
           return;
@@ -468,7 +541,7 @@ class VelbusPanel extends HTMLElement {
             channel,
             value
           );
-          await this._loadModulePage(this._moduleAddress);
+          await this._reloadModuleMetadata();
         });
       },
       onSaveChannelEnabled: async (channel, enabled) => {
@@ -482,8 +555,10 @@ class VelbusPanel extends HTMLElement {
             channel,
             enabled
           );
-          await this._loadModulePage(this._moduleAddress);
-          await this._refreshActions();
+          await this._reloadModuleMetadata();
+          if (this._actionsLoadedChannel === channel) {
+            await this._refreshActions();
+          }
         });
       },
       onSaveChannelContact: async (channel, value) => {
@@ -497,7 +572,7 @@ class VelbusPanel extends HTMLElement {
             channel,
             value
           );
-          await this._loadModulePage(this._moduleAddress);
+          await this._reloadModuleMetadata();
         });
       },
     });
@@ -505,22 +580,37 @@ class VelbusPanel extends HTMLElement {
 
   _render() {
     this._syncTheme();
+    const initialLoad = this._isInitialLoad();
     this.shadowRoot.innerHTML = `
       <style>${PANEL_STYLES}</style>
-      <div class="page-header">
-        <button type="button" class="link page-back" id="back-to-integration">← Back</button>
-        <h1>Velbus configuration</h1>
+      <div class="subpage">
+        <div class="toolbar">
+          <div class="toolbar-content">
+            <button type="button" class="icon-button" id="toolbar-back" aria-label="Back">
+              ${svgIcon(ICONS.arrowLeft)}
+            </button>
+          </div>
+        </div>
+        <div class="content">
+          ${
+            this._error
+              ? `<div class="ha-alert error">${svgIcon(ICONS.alertOutline)}<div>${escapeHtml(
+                  this._error
+                )}</div></div>`
+              : ""
+          }
+          ${
+            initialLoad
+              ? `<div class="loading-state"><div class="spinner"></div><p>Loading…</p></div>`
+              : `<div id="page-content">${this._renderPageContent()}</div>`
+          }
+        </div>
       </div>
-      ${this._loading ? "<p>Loading…</p>" : ""}
-      ${this._error ? `<p class="warning">${this._error}</p>` : ""}
-      <div id="page-content">${this._renderPageContent()}</div>
     `;
 
-    this.shadowRoot
-      .getElementById("back-to-integration")
-      ?.addEventListener("click", () => {
-        this._goBackToIntegration();
-      });
+    this.shadowRoot.getElementById("toolbar-back")?.addEventListener("click", () => {
+      this._onToolbarBack();
+    });
 
     const contentRoot = this.shadowRoot.getElementById("page-content");
     if (contentRoot) {

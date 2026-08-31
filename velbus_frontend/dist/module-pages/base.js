@@ -1,3 +1,5 @@
+import { escapeHtml } from "../ui.js";
+
 export function getModule(modules, address) {
   return modules.find((module) => module.address === address);
 }
@@ -21,7 +23,7 @@ export function sourceChannelOptions(modules, moduleAddress) {
     .sort(([left], [right]) => Number(left) - Number(right))
     .map(([channel, info]) => {
       const label = info.name || `Channel ${channel}`;
-      return `<option value="${channel}">${label}</option>`;
+      return `<option value="${channel}">${escapeHtml(label)}</option>`;
     })
     .join("");
 }

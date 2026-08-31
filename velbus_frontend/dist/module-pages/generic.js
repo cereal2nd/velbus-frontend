@@ -8,6 +8,12 @@ import {
   isProgrammedSlot,
   sourceChannelOptions,
 } from "./base.js";
+import {
+  escapeHtml,
+  formatAddress,
+  ICONS,
+  svgIcon,
+} from "../ui.js";
 
 function canEdit(advancedMode, interactionsDisabled) {
   return advancedMode && !interactionsDisabled;
@@ -28,47 +34,177 @@ function renderAddActionDialog(ctx) {
   const editable = canEdit(advancedMode, interactionsDisabled);
   const sourceAddress =
     sourceModuleAddress ?? (modules.length ? modules[0].address : null);
+  const title =
+    actionTable.kind === "input" ? "Add input action" : "Add action";
   return `
     <div class="dialog-backdrop" id="add-action-dialog">
-      <div class="dialog card">
-        <h3>Add ${
-          actionTable.kind === "input" ? "input action" : "action"
-        }</h3>
-        <p class="muted">Program a new action for the selected channel.</p>
-        <label><span>Source module</span>
-          <select id="source-module" ${editable ? "" : "disabled"}>
-            ${modules
-              .map(
-                (module) =>
-                  `<option value="${module.address}" ${
-                    module.address === sourceAddress ? "selected" : ""
-                  }>${module.name} (${module.address})</option>`
-              )
-              .join("")}
-          </select>
-        </label>
-        <label><span>Source channel</span>
-          <select id="source-channel" ${editable ? "" : "disabled"}>
-            ${sourceChannelOptions(modules, sourceAddress)}
-          </select>
-        </label>
-        <label><span>Action</span>
-          <select id="action-key" ${editable ? "" : "disabled"}>
-            ${actionTable.actions
-              .map(
-                (action) =>
-                  `<option value="${action.key}">${action.label}</option>`
-              )
-              .join("")}
-          </select>
-        </label>
+      <div class="dialog" role="dialog" aria-labelledby="add-action-title">
+        <div class="dialog-header">
+          <h2 id="add-action-title">${title}</h2>
+          <button type="button" class="icon-button" id="cancel-add-action" aria-label="Close">
+            ${svgIcon(ICONS.close)}
+          </button>
+        </div>
+        <div class="dialog-content">
+          <p class="secondary">Program a new action for the selected channel.</p>
+          <label><span>Source module</span>
+            <select id="source-module" ${editable ? "" : "disabled"}>
+              ${modules
+                .map(
+                  (module) =>
+                    `<option value="${module.address}" ${
+                      module.address === sourceAddress ? "selected" : ""
+                    }>${escapeHtml(module.name)} (${module.address})</option>`
+                )
+                .join("")}
+            </select>
+          </label>
+          <label><span>Source channel</span>
+            <select id="source-channel" ${editable ? "" : "disabled"}>
+              ${sourceChannelOptions(modules, sourceAddress)}
+            </select>
+          </label>
+          <label><span>Action</span>
+            <select id="action-key" ${editable ? "" : "disabled"}>
+              ${actionTable.actions
+                .map(
+                  (action) =>
+                    `<option value="${escapeHtml(action.key)}">${escapeHtml(
+                      action.label
+                    )}</option>`
+                )
+                .join("")}
+            </select>
+          </label>
+        </div>
         <div class="dialog-actions">
-          <button class="secondary" id="cancel-add-action">Cancel</button>
-          <button id="confirm-add-action" ${
+          <button type="button" class="secondary" id="cancel-add-action-footer">Cancel</button>
+          <button type="button" class="primary" id="confirm-add-action" ${
             editable ? "" : "disabled"
-          }>Program action</button>
+          }>Program</button>
         </div>
       </div>
+    </div>`;
+}
+
+function renderChannelSettings({
+  actionChannel,
+  channelNames,
+  contact,
+  selectedSupportsEnable,
+  selectedEnabled,
+  channels,
+  editable,
+}) {
+  const rows = [];
+  if (channelNames?.channels?.some((entry) => entry.channel === actionChannel)) {
+    rows.push(`
+      <div class="settings-row">
+        <div class="settings-body">
+          <div class="settings-title">Name</div>
+          <div class="settings-secondary">Up to 16 characters</div>
+        </div>
+        <input
+          type="text"
+          maxlength="16"
+          data-channel-name="${actionChannel}"
+          value="${escapeHtml(channels[String(actionChannel)]?.name || "")}"
+          ${editable ? "" : "disabled"}
+        />
+      </div>`);
+  }
+  if (contact?.channels?.includes(actionChannel)) {
+    const current = channels[String(actionChannel)]?.contact || "NO";
+    rows.push(`
+      <div class="settings-row">
+        <div class="settings-body">
+          <div class="settings-title">Contact</div>
+          <div class="settings-secondary">Normally open or closed</div>
+        </div>
+        <select data-channel-contact="${actionChannel}" ${editable ? "" : "disabled"}>
+          ${(contact.options || ["NO", "NC"])
+            .map(
+              (option) =>
+                `<option value="${escapeHtml(option)}" ${
+                  option === current ? "selected" : ""
+                }>${escapeHtml(option)}</option>`
+            )
+            .join("")}
+        </select>
+      </div>`);
+  }
+  if (selectedSupportsEnable) {
+    rows.push(`
+      <div class="settings-row">
+        <div class="settings-body">
+          <div class="settings-title">Enabled</div>
+          <div class="settings-secondary">Include this channel on the bus</div>
+        </div>
+        <span class="toggle-wrap">
+          <input
+            class="toggle"
+            type="checkbox"
+            data-channel-enable="${actionChannel}"
+            ${selectedEnabled ? "checked" : ""}
+            ${editable ? "" : "disabled"}
+          />
+        </span>
+      </div>`);
+  }
+  return rows.join("");
+}
+
+function renderActionSlots({
+  actions,
+  actionsLoaded,
+  loadingActions,
+  editable,
+  interactionsDisabled,
+}) {
+  if (loadingActions && !actions.length) {
+    return `<div class="loading-state"><div class="spinner"></div><p>Loading actions…</p></div>`;
+  }
+  if (!actionsLoaded) {
+    return `
+      <div class="empty-state">
+        ${svgIcon(ICONS.flash, 40)}
+        <p>Select a channel tab to load programmed actions</p>
+      </div>`;
+  }
+  if (!actions.length) {
+    return `
+      <div class="empty-state">
+        ${svgIcon(ICONS.flash, 40)}
+        <p>No programmed actions for this channel</p>
+      </div>`;
+  }
+  return `
+    <div class="list">
+      ${actions
+        .map((slot) => {
+          const source = formatSource(slot);
+          const title = slot.action_label || slot.action_key || "Action";
+          return `
+            <div class="list-item static">
+              <span class="slot-badge">${slot.slot}</span>
+              <span class="item-content">
+                <span class="item-title">${escapeHtml(title)}</span>
+                <span class="item-secondary" title="${escapeHtml(
+                  `${slot.source_address}:${slot.source_channel ?? "?"}`
+                )}">${escapeHtml(source)}</span>
+              </span>
+              ${
+                editable
+                  ? `<button type="button" class="icon-button danger" data-clear-slot="${
+                      slot.slot
+                    }" aria-label="Clear slot ${slot.slot}" ${
+                      interactionsDisabled ? "disabled" : ""
+                    }>${svgIcon(ICONS.deleteOutline)}</button>`
+                  : ""
+              }
+            </div>`;
+        })
+        .join("")}
     </div>`;
 }
 
@@ -78,6 +214,7 @@ export function render(ctx) {
     modules,
     actionChannel,
     actionSlots,
+    actionsLoaded,
     loadingActions,
     interactionsDisabled,
     advancedMode,
@@ -106,12 +243,6 @@ export function render(ctx) {
       (entry) => entry.channel === actionChannel && entry.supports_enable
     );
   const selectedEnabled = channels[String(actionChannel)]?.enabled !== false;
-  const metaParts = [
-    `Address ${moduleData.address}`,
-    moduleData.type_name,
-    moduleData.sw_version ? `Firmware ${moduleData.sw_version}` : null,
-    moduleData.serial ? `Serial ${moduleData.serial}` : null,
-  ].filter(Boolean);
 
   const dialogCtx = {
     showAddActionDialog,
@@ -122,31 +253,38 @@ export function render(ctx) {
     sourceModuleAddress,
   };
 
+  const infoRows = [
+    ["Address", formatAddress(moduleData.address)],
+    moduleData.sw_version ? ["Firmware", moduleData.sw_version] : null,
+    moduleData.serial ? ["Serial number", moduleData.serial] : null,
+  ].filter(Boolean);
+
   return `
-    <section class="card header">
-      <div class="header-row">
-        <button class="link back" id="back-button">← Modules</button>
-        ${
-          actionTable
-            ? `<button id="add-action" class="primary" ${
-                editable ? "" : "disabled"
-              }>Add action</button>`
-            : ""
-        }
+    ${
+      !advancedMode
+        ? `<div class="ha-alert warning">
+            ${svgIcon(ICONS.alertOutline)}
+            <div>Advanced mode is disabled. Enable it in the Velbus integration options to program module memory.</div>
+          </div>`
+        : ""
+    }
+    <section class="card">
+      <div class="card-header">Device info</div>
+      <div class="card-content">
+        <div class="model">${escapeHtml(moduleData.type_name || "")}</div>
+        ${infoRows
+          .map(
+            ([label, value]) =>
+              `<div class="extra-info">${escapeHtml(label)}: ${escapeHtml(value)}</div>`
+          )
+          .join("")}
       </div>
-      <h2>${moduleData.name}</h2>
-      <p class="muted">${metaParts.join(" · ")}</p>
-      ${
-        !advancedMode
-          ? `<p class="warning">Advanced mode is disabled. Enable it in the Velbus integration configuration to program module memory.</p>`
-          : ""
-      }
     </section>
     ${
       actionTable
         ? `<div class="module-layout">
             <section class="card channel-panel">
-              <h3>Channels</h3>
+              <div class="card-header compact">Channels</div>
               <ul class="channel-list">
                 ${actionTable.channels
                   .map((channel) => {
@@ -163,12 +301,15 @@ export function render(ctx) {
                         data-action-channel="${channel}"
                         ${interactionsDisabled ? "disabled" : ""}
                       >
-                        <span class="channel-name">${label}</span>
-                        ${
-                          disabled
-                            ? `<span class="channel-badge">Disabled</span>`
-                            : ""
-                        }
+                        <span class="slot-badge">${channel}</span>
+                        <span class="item-content">
+                          <span class="item-title">${escapeHtml(label)}</span>
+                          ${
+                            disabled
+                              ? `<span class="item-secondary">Disabled</span>`
+                              : `<span class="item-secondary">Channel ${channel}</span>`
+                          }
+                        </span>
                       </button>
                     </li>`;
                   })
@@ -176,116 +317,60 @@ export function render(ctx) {
               </ul>
             </section>
             <section class="card actions-panel">
-              <div class="actions-header">
-                <h3>${
-                  actionTable.kind === "input" ? "Input actions" : "Actions"
-                } — ${selectedChannelLabel}</h3>
-                ${
-                  channelNames?.channels?.some(
-                    (entry) => entry.channel === actionChannel
-                  )
-                    ? `<label class="channel-rename">
-                        <span>Channel name</span>
-                        <input
-                          type="text"
-                          maxlength="16"
-                          data-channel-name="${actionChannel}"
-                          value="${channels[String(actionChannel)]?.name || ""}"
-                          ${editable ? "" : "disabled"}
-                        />
-                      </label>`
-                    : ""
-                }
-                ${
-                  contact?.channels?.includes(actionChannel)
-                    ? `<label class="channel-contact">
-                        <span>Contact</span>
-                        <select
-                          data-channel-contact="${actionChannel}"
-                          ${editable ? "" : "disabled"}
-                        >
-                          ${(contact.options || ["NO", "NC"])
-                            .map((option) => {
-                              const current =
-                                channels[String(actionChannel)]?.contact || "NO";
-                              return `<option value="${option}" ${
-                                option === current ? "selected" : ""
-                              }>${option}</option>`;
-                            })
-                            .join("")}
-                        </select>
-                      </label>`
-                    : ""
-                }
-                ${
-                  selectedSupportsEnable
-                    ? `<label class="channel-enable">
-                        <input
-                          type="checkbox"
-                          data-channel-enable="${actionChannel}"
-                          ${selectedEnabled ? "checked" : ""}
-                          ${editable ? "" : "disabled"}
-                        />
-                        <span>Channel enabled</span>
-                      </label>`
-                    : ""
-                }
+              <div class="card-header compact">
+                <div class="card-header-text">
+                  ${actionTable.kind === "input" ? "Input actions" : "Actions"}
+                  <span class="card-header-secondary">${escapeHtml(
+                    selectedChannelLabel
+                  )}</span>
+                </div>
               </div>
-              ${loadingActions ? "<p>Loading actions…</p>" : ""}
-              <table>
-                <thead>
-                  <tr><th>Slot</th><th>Source</th><th>Action</th><th></th></tr>
-                </thead>
-                <tbody>
-                  ${
-                    actions.length
-                      ? actions
-                          .map(
-                            (slot) => `<tr>
-                        <td>${slot.slot}</td>
-                        <td title="${slot.source_address}:${
-                              slot.source_channel ?? "?"
-                            }">${formatSource(slot)}</td>
-                        <td>${slot.action_label || slot.action_key || ""}</td>
-                        <td>${
-                          editable
-                            ? `<button class="link" data-clear-slot="${slot.slot}" ${
-                                interactionsDisabled ? "disabled" : ""
-                              }>Clear</button>`
-                            : ""
-                        }</td>
-                      </tr>`
-                          )
-                          .join("")
-                      : `<tr><td colspan="4">${
-                          loadingActions
-                            ? ""
-                            : "No programmed actions for this channel."
-                        }</td></tr>`
-                  }
-                </tbody>
-              </table>
+              <div class="card-actions">
+                <button type="button" id="add-action" class="primary" ${
+                  editable ? "" : "disabled"
+                }>
+                  ${svgIcon(ICONS.plus, 18)} Add action
+                </button>
+              </div>
+              ${renderChannelSettings({
+                actionChannel,
+                channelNames,
+                contact,
+                selectedSupportsEnable,
+                selectedEnabled,
+                channels,
+                editable,
+              })}
+              ${renderActionSlots({
+                actions,
+                actionsLoaded,
+                loadingActions,
+                editable,
+                interactionsDisabled,
+              })}
             </section>
           </div>
           ${renderAddActionDialog(dialogCtx)}`
         : `${
             channelNames
               ? `<section class="card">
-              <h3>Channel names</h3>
+              <div class="card-header compact">Channel names</div>
               ${channelNames.channels
                 .map((channel) => {
                   const live = channels[String(channel.channel)] || {};
                   const value = live.name || "";
-                  return `<label>
-                    <span>${channel.name}</span>
+                  return `<div class="settings-row">
+                    <div class="settings-body">
+                      <div class="settings-title">${escapeHtml(channel.name)}</div>
+                    </div>
                     <input
                       type="text"
                       maxlength="16"
                       data-channel-name="${channel.channel}"
-                      value="${value}"
+                      value="${escapeHtml(value)}"
                       ${editable ? "" : "disabled"}
                     />
-                  </label>`;
+                  </div>`;
                 })
                 .join("")}
             </section>`
@@ -293,14 +378,16 @@ export function render(ctx) {
           }${
             contact
               ? `<section class="card">
-              <h3>Contact type</h3>
+              <div class="card-header compact">Contact type</div>
               ${contact.channels
                 .map((channel) => {
                   const live = channels[String(channel)] || {};
                   const current = live.contact || "NO";
                   const label = channelLabel(channel, sections, channels);
-                  return `<label>
-                    <span>${label}</span>
+                  return `<div class="settings-row">
+                    <div class="settings-body">
+                      <div class="settings-title">${escapeHtml(label)}</div>
+                    </div>
                     <select
                       data-channel-contact="${channel}"
                       ${editable ? "" : "disabled"}
@@ -308,13 +395,13 @@ export function render(ctx) {
                       ${(contact.options || ["NO", "NC"])
                         .map(
                           (option) =>
-                            `<option value="${option}" ${
+                            `<option value="${escapeHtml(option)}" ${
                               option === current ? "selected" : ""
-                            }>${option}</option>`
+                            }>${escapeHtml(option)}</option>`
                         )
                         .join("")}
                     </select>
-                  </label>`;
+                  </div>`;
                 })
                 .join("")}
             </section>`
@@ -324,10 +411,6 @@ export function render(ctx) {
 }
 
 export function bind(root, handlers) {
-  root.querySelector("#back-button")?.addEventListener("click", () => {
-    handlers.onBack();
-  });
-
   root.querySelectorAll("[data-action-channel]").forEach((element) => {
     element.addEventListener("click", () => {
       handlers.onSelectChannel(Number(element.dataset.actionChannel));
@@ -338,9 +421,11 @@ export function bind(root, handlers) {
     handlers.onShowAddAction();
   });
 
-  root.querySelector("#cancel-add-action")?.addEventListener("click", () => {
-    handlers.onHideAddAction();
-  });
+  const hideAddAction = () => handlers.onHideAddAction();
+  root.querySelector("#cancel-add-action")?.addEventListener("click", hideAddAction);
+  root
+    .querySelector("#cancel-add-action-footer")
+    ?.addEventListener("click", hideAddAction);
 
   root.querySelector("#add-action-dialog")?.addEventListener("click", (event) => {
     if (event.target.id === "add-action-dialog") {

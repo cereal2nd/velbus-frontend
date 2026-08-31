@@ -25,7 +25,6 @@ export async function loadActions(callWs, address, channel) {
   const result = await callWs("velbus/config_panel/module/actions/get", {
     address,
     channel,
-    refresh: true,
   });
   return result.slots || [];
 }

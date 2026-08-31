@@ -7,6 +7,7 @@ velbus_frontend.egg-info/dependency_links.txt
 velbus_frontend.egg-info/top_level.txt
 velbus_frontend/dist/api.js
 velbus_frontend/dist/styles.js
+velbus_frontend/dist/ui.js
 velbus_frontend/dist/velbus-panel.js
 velbus_frontend/dist/module-pages/base.js
 velbus_frontend/dist/module-pages/generic.js

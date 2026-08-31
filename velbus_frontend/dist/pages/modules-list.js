@@ -1,24 +1,56 @@
+import {
+  escapeHtml,
+  formatAddress,
+  ICONS,
+  iconForModule,
+  svgIcon,
+} from "../ui.js";
+
 export function renderModulesList(ctx) {
   const { modules } = ctx;
+  if (!modules.length) {
+    return `
+      <div class="card">
+        <div class="empty-state">
+          ${svgIcon(ICONS.memory, 40)}
+          <p>No modules found</p>
+        </div>
+      </div>`;
+  }
   return `
-    <section class="modules-section">
-      <h2>Modules</h2>
-      ${
-        modules.length
-          ? `<div class="module-grid">
-              ${modules
-                .map(
-                  (module) => `
-                <button class="module-tile" type="button" data-address="${module.address}">
-                  <span class="module-address">Address ${module.address} (0x${Number(module.address).toString(16).toUpperCase().padStart(2, "0")})</span>
-                  <span class="module-name">${module.name}</span>
-                  <span class="module-type muted">${module.type_name}</span>
-                </button>`
-                )
-                .join("")}
-            </div>`
-          : "<p>No modules found.</p>"
-      }
+    <section class="card modules-section">
+      <div class="search-row">
+        ${svgIcon(ICONS.magnify)}
+        <input type="search" id="module-filter" placeholder="Filter modules" autocomplete="off" />
+      </div>
+      <div class="list">
+        ${modules
+          .map((module) => {
+            const name = escapeHtml(module.name);
+            const typeName = escapeHtml(module.type_name);
+            const address = formatAddress(module.address);
+            const search = escapeHtml(
+              `${module.name} ${module.type_name} ${module.address} ${address}`.toLowerCase()
+            );
+            return `
+              <button class="module-item" type="button" data-address="${module.address}" data-search="${search}">
+                <span class="item-icon">${svgIcon(iconForModule(module.type_name))}</span>
+                <span class="item-content">
+                  <span class="item-title">${name}</span>
+                  <span class="item-secondary">${typeName}</span>
+                </span>
+                <span class="item-meta">
+                  <span class="chip">${escapeHtml(address)}</span>
+                  ${svgIcon(ICONS.chevronRight)}
+                </span>
+              </button>`;
+          })
+          .join("")}
+      </div>
+      <div class="empty-state empty-filter" hidden>
+        ${svgIcon(ICONS.magnify, 40)}
+        <p>No matching modules</p>
+      </div>
     </section>`;
 }
 
@@ -27,5 +59,16 @@ export function bindModulesList(root, handlers) {
     element.addEventListener("click", () => {
       handlers.onSelect(Number(element.dataset.address));
     });
+  });
+  root.querySelector("#module-filter")?.addEventListener("input", (event) => {
+    const query = event.target.value.trim().toLowerCase();
+    const items = [...root.querySelectorAll(".module-item")];
+    items.forEach((element) => {
+      element.hidden = Boolean(query) && !element.dataset.search.includes(query);
+    });
+    const emptyFilter = root.querySelector(".empty-filter");
+    if (emptyFilter) {
+      emptyFilter.hidden = items.some((element) => !element.hidden);
+    }
   });
 }
