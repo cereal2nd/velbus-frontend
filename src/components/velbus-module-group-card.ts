@@ -33,15 +33,13 @@ export class VelbusModuleGroupCard extends LitElement {
   @property({ attribute: false })
   public onSelect?: (address: number) => void;
 
-  @property({ attribute: false }) public onToggle?: () => void;
+  @property({ attribute: false })
+  public onToggle?: (groupId: ModuleGroupId) => void;
 
   protected render(): TemplateResult {
     const accent = MODULE_GROUP_ACCENT[this.groupId];
     return html`
-      <ha-card
-        class="nav-card"
-        style="--group-accent: ${accent}"
-      >
+      <ha-card class="nav-card" style="--group-accent: ${accent}">
         <details .open=${this.open}>
           <summary class="card-header" @click=${this._summaryClick}>
             <div class="header-leading">
@@ -52,17 +50,20 @@ export class VelbusModuleGroupCard extends LitElement {
               </div>
               <span class="title">
                 ${this.hass.localize(
-                  MODULE_GROUP_TRANSLATION_KEYS[
-                    this.groupId
-                  ] as LocalizeKeys,
+                  MODULE_GROUP_TRANSLATION_KEYS[this.groupId] as LocalizeKeys,
                 )}
               </span>
             </div>
-            <span class="count-badge" aria-hidden="true">
-              <ha-svg-icon .path=${mdiViewModule}></ha-svg-icon>
-              <span class="count-value">${this.modules.length}</span>
-            </span>
-            <ha-svg-icon class="chevron" .path=${mdiChevronDown}></ha-svg-icon>
+            <div class="header-trailing">
+              <span class="count-badge" aria-hidden="true">
+                <ha-svg-icon .path=${mdiViewModule}></ha-svg-icon>
+                <span class="count-value">${this.modules.length}</span>
+              </span>
+              <ha-svg-icon
+                class="chevron"
+                .path=${mdiChevronDown}
+              ></ha-svg-icon>
+            </div>
           </summary>
           <div class="card-content">
             <ha-md-list>
@@ -98,7 +99,7 @@ export class VelbusModuleGroupCard extends LitElement {
 
   private _summaryClick(ev: Event): void {
     ev.preventDefault();
-    this.onToggle?.();
+    this.onToggle?.(this.groupId);
   }
 
   private _select(ev: Event): void {
@@ -109,8 +110,13 @@ export class VelbusModuleGroupCard extends LitElement {
   }
 
   static styles: CSSResultGroup = css`
+    :host {
+      display: block;
+      min-width: 0;
+    }
     .nav-card {
       overflow: hidden;
+      width: 100%;
     }
     details {
       display: block;
@@ -135,16 +141,25 @@ export class VelbusModuleGroupCard extends LitElement {
       );
       border-inline-start: 4px solid var(--group-accent);
       display: flex;
+      flex-wrap: wrap;
       gap: var(--ha-space-2);
       justify-content: space-between;
-      padding: var(--ha-space-3) var(--ha-space-4);
+      padding: var(--ha-space-4);
     }
-    .header-leading {
+    .header-leading,
+    .header-trailing {
       align-items: center;
       display: flex;
-      flex: 1;
       gap: var(--ha-space-3);
+    }
+    .header-leading {
+      flex: 1;
       min-width: 0;
+    }
+    .header-trailing {
+      flex-shrink: 0;
+      gap: var(--ha-space-2);
+      margin-inline-start: auto;
     }
     .group-icon {
       align-items: center;
@@ -170,6 +185,9 @@ export class VelbusModuleGroupCard extends LitElement {
       font-size: var(--ha-font-size-l);
       font-weight: var(--ha-font-weight-medium);
       min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .count-badge {
       align-items: center;
@@ -186,7 +204,6 @@ export class VelbusModuleGroupCard extends LitElement {
       font-weight: var(--ha-font-weight-medium);
       gap: var(--ha-space-1);
       line-height: 1;
-      margin-inline-start: auto;
       padding: var(--ha-space-1) var(--ha-space-2);
     }
     .count-badge ha-svg-icon {
@@ -203,7 +220,7 @@ export class VelbusModuleGroupCard extends LitElement {
     }
     ha-md-list {
       background: none;
-      padding: 0;
+      padding: var(--ha-space-1) 0;
     }
     ha-md-list-item {
       --md-item-overflow: visible;
@@ -220,6 +237,8 @@ export class VelbusModuleGroupCard extends LitElement {
       border-radius: var(--ha-border-radius-md);
       color: var(--primary-text-color);
       font-size: var(--ha-font-size-s);
+      max-width: 100%;
+      overflow-wrap: anywhere;
       padding: var(--ha-space-1) var(--ha-space-2);
     }
   `;

@@ -14,6 +14,7 @@ gulp.task(
       process.env.NODE_ENV = "development";
     },
     "clean-velbus-dist",
+    "set-dev-flag",
     "gen-icons-json",
     "build-translations",
     "build-locale-data",

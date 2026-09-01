@@ -10,6 +10,7 @@ import {
   loadModulePage,
   resolveModulePageType,
 } from "../module-pages/registry";
+import { velbusPageStyles } from "../styles";
 import type {
   VelbusCallWs,
   VelbusModuleData,
@@ -56,7 +57,7 @@ export class VelbusModulePage extends LitElement {
         .header=${header}
         .backCallback=${this.onBack}
       >
-        <div class="container">
+        <div class="container container--module">
           ${
             this.loading
               ? html`<div class="center"><ha-spinner></ha-spinner></div>`
@@ -92,24 +93,16 @@ export class VelbusModulePage extends LitElement {
     );
   }
 
-  static styles: CSSResultGroup = css`
-    :host {
-      --app-header-background-color: var(--sidebar-background-color);
-      --app-header-text-color: var(--sidebar-text-color);
-      --app-header-border-bottom: 1px solid var(--divider-color);
-    }
-    .container {
-      margin: 0 auto;
-      max-width: 960px;
-      padding: var(--ha-space-2) var(--ha-space-4)
-        calc(var(--ha-space-8) + var(--safe-area-inset-bottom, 0px));
-    }
-    .center {
-      display: flex;
-      justify-content: center;
-      padding: var(--ha-space-8);
-    }
-  `;
+  static styles: CSSResultGroup = [
+    velbusPageStyles,
+    css`
+      .center {
+        display: flex;
+        justify-content: center;
+        padding: var(--ha-space-12);
+      }
+    `,
+  ];
 }
 
 declare global {

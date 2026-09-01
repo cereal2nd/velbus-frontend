@@ -20,6 +20,7 @@ import type { HaInput } from "@ha/components/input/ha-input";
 
 import "../components/velbus-module-group-card";
 import "../components/velbus-status-card";
+import { velbusPageStyles } from "../styles";
 import type { VelbusBaseData, VelbusModuleSummary } from "../types";
 import {
   groupedModules,
@@ -67,15 +68,76 @@ export class VelbusConfigDashboard extends LitElement {
         .header=${this.hass.localize("component.velbus.config_panel.title")}
         back-path="/config/integrations/integration/velbus"
       >
-        <div class="container">
-          <velbus-status-card
-            .hass=${this.hass}
-            .connected=${this.baseData?.connected ?? false}
-            .moduleCount=${this.baseData?.module_count ?? this.modules.length}
-          ></velbus-status-card>
-          ${this._renderModules(visibleModules, groups, visibleGroupIds, hasGroups)}
+        <div class="container container--dashboard">
+          ${this._renderToolbar(hasGroups)}
+          <div class="group-grid">
+            ${this._renderModules(visibleModules, groups, visibleGroupIds)}
+          </div>
         </div>
       </hass-subpage>
+    `;
+  }
+
+  private _renderToolbar(hasGroups: boolean): TemplateResult {
+    return html`
+      <div class="toolbar">
+        <velbus-status-card
+          .hass=${this.hass}
+          .connected=${this.baseData?.connected ?? false}
+          .moduleCount=${this.baseData?.module_count ?? this.modules.length}
+        ></velbus-status-card>
+        ${
+          this.loading || !this.modules.length
+            ? nothing
+            : html`
+                <ha-input
+                  class="filter-input"
+                  type="search"
+                  .placeholder=${this.hass.localize(
+                    "component.velbus.config_panel.filter_placeholder",
+                  )}
+                  .value=${this._filter}
+                  @input=${this._filterChanged}
+                >
+                  <ha-svg-icon slot="start" .path=${mdiMagnify}></ha-svg-icon>
+                </ha-input>
+                ${
+                  hasGroups
+                    ? html`
+                        <div class="group-actions">
+                          <ha-tooltip
+                            .content=${this.hass.localize(
+                              "component.velbus.config_panel.expand_all_groups",
+                            )}
+                          >
+                            <ha-icon-button
+                              .label=${this.hass.localize(
+                                "component.velbus.config_panel.expand_all_groups",
+                              )}
+                              .path=${mdiUnfoldMoreHorizontal}
+                              @click=${this._expandAllGroups}
+                            ></ha-icon-button>
+                          </ha-tooltip>
+                          <ha-tooltip
+                            .content=${this.hass.localize(
+                              "component.velbus.config_panel.collapse_all_groups",
+                            )}
+                          >
+                            <ha-icon-button
+                              .label=${this.hass.localize(
+                                "component.velbus.config_panel.collapse_all_groups",
+                              )}
+                              .path=${mdiUnfoldLessHorizontal}
+                              @click=${this._collapseAllGroups}
+                            ></ha-icon-button>
+                          </ha-tooltip>
+                        </div>
+                      `
+                    : nothing
+                }
+              `
+        }
+      </div>
     `;
   }
 
@@ -83,7 +145,6 @@ export class VelbusConfigDashboard extends LitElement {
     visibleModules: VelbusModuleSummary[],
     groups: ReturnType<typeof groupedModules>,
     visibleGroupIds: ModuleGroupId[],
-    hasGroups: boolean,
   ) {
     if (this.loading) {
       return html`<div class="center"><ha-spinner></ha-spinner></div>`;
@@ -101,55 +162,6 @@ export class VelbusConfigDashboard extends LitElement {
       `;
     }
     return html`
-      <ha-card class="filter-card">
-        <div class="filter-row">
-          <ha-input
-            class="filter-input"
-            type="search"
-            .placeholder=${this.hass.localize(
-              "component.velbus.config_panel.filter_placeholder",
-            )}
-            .value=${this._filter}
-            @input=${this._filterChanged}
-          >
-            <ha-svg-icon slot="start" .path=${mdiMagnify}></ha-svg-icon>
-          </ha-input>
-          ${
-            hasGroups
-              ? html`
-                  <div class="group-actions">
-                    <ha-tooltip
-                      .content=${this.hass.localize(
-                        "component.velbus.config_panel.expand_all_groups",
-                      )}
-                    >
-                      <ha-icon-button
-                        .label=${this.hass.localize(
-                          "component.velbus.config_panel.expand_all_groups",
-                        )}
-                        .path=${mdiUnfoldMoreHorizontal}
-                        @click=${() => this._setAllGroups(visibleGroupIds, true)}
-                      ></ha-icon-button>
-                    </ha-tooltip>
-                    <ha-tooltip
-                      .content=${this.hass.localize(
-                        "component.velbus.config_panel.collapse_all_groups",
-                      )}
-                    >
-                      <ha-icon-button
-                        .label=${this.hass.localize(
-                          "component.velbus.config_panel.collapse_all_groups",
-                        )}
-                        .path=${mdiUnfoldLessHorizontal}
-                        @click=${() => this._setAllGroups(visibleGroupIds, false)}
-                      ></ha-icon-button>
-                    </ha-tooltip>
-                  </div>
-                `
-              : nothing
-          }
-        </div>
-      </ha-card>
       ${visibleGroupIds.map((groupId) => {
         const groupModules = groups.get(groupId) || [];
         return html`
@@ -159,7 +171,7 @@ export class VelbusConfigDashboard extends LitElement {
             .modules=${groupModules}
             .open=${this._openGroups.has(groupId)}
             .onSelect=${this.onSelectModule}
-            .onToggle=${() => this._toggleGroup(groupId)}
+            .onToggle=${this._toggleGroup}
           ></velbus-module-group-card>
         `;
       })}
@@ -199,7 +211,7 @@ export class VelbusConfigDashboard extends LitElement {
     }
   }
 
-  private _toggleGroup(groupId: ModuleGroupId): void {
+  private _toggleGroup = (groupId: ModuleGroupId): void => {
     const next = new Set(this._openGroups);
     if (next.has(groupId)) {
       next.delete(groupId);
@@ -207,7 +219,28 @@ export class VelbusConfigDashboard extends LitElement {
       next.add(groupId);
     }
     this._openGroups = next;
+  };
+
+  private _getVisibleGroupIds(): ModuleGroupId[] {
+    const filtered = this._filter.trim().toLowerCase();
+    const visibleModules = filtered
+      ? this.modules.filter((module) =>
+          moduleSearchText(module).includes(filtered),
+        )
+      : this.modules;
+    const groups = groupedModules(visibleModules);
+    return MODULE_GROUP_ORDER.filter(
+      (groupId) => (groups.get(groupId)?.length ?? 0) > 0,
+    );
   }
+
+  private _expandAllGroups = (): void => {
+    this._setAllGroups(this._getVisibleGroupIds(), true);
+  };
+
+  private _collapseAllGroups = (): void => {
+    this._setAllGroups(this._getVisibleGroupIds(), false);
+  };
 
   private _setAllGroups(groupIds: ModuleGroupId[], open: boolean): void {
     this._openGroups = open ? new Set(groupIds) : new Set();
@@ -215,39 +248,39 @@ export class VelbusConfigDashboard extends LitElement {
 
   static styles: CSSResultGroup = [
     haStyle,
+    velbusPageStyles,
     css`
-      :host {
-        --app-header-background-color: var(--sidebar-background-color);
-        --app-header-text-color: var(--sidebar-text-color);
-        --app-header-border-bottom: 1px solid var(--divider-color);
-      }
-      .container {
-        margin: 0 auto;
-        max-width: 600px;
-        padding: var(--ha-space-2) var(--ha-space-4)
-          calc(var(--ha-space-8) + var(--safe-area-inset-bottom, 0px));
-      }
-      velbus-status-card,
-      ha-card {
-        display: block;
-        margin-top: var(--ha-space-4);
-      }
-      .filter-card {
-        padding: var(--ha-space-3) var(--ha-space-4);
-      }
-      .filter-row {
+      .toolbar {
         align-items: center;
-        display: flex;
-        gap: var(--ha-space-2);
+        display: grid;
+        gap: var(--ha-space-4);
+        grid-template-columns: minmax(240px, 360px) 1fr auto;
+      }
+      .toolbar:not(:has(.filter-input)) {
+        grid-template-columns: minmax(240px, 360px);
+      }
+      velbus-status-card {
+        min-width: 0;
       }
       .filter-input {
-        flex: 1;
         min-width: 0;
+        width: 100%;
       }
       .group-actions {
         display: flex;
         flex-shrink: 0;
         gap: var(--ha-space-1);
+        justify-self: end;
+      }
+      .group-grid {
+        align-items: start;
+        display: grid;
+        gap: var(--ha-space-4);
+        grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 1fr));
+      }
+      .group-grid > .center,
+      .group-grid > ha-card {
+        grid-column: 1 / -1;
       }
       .center {
         align-items: center;
@@ -256,8 +289,15 @@ export class VelbusConfigDashboard extends LitElement {
         flex-direction: column;
         gap: var(--ha-space-3);
         justify-content: center;
-        padding: var(--ha-space-8);
+        padding-block: var(--ha-space-12);
+        padding-inline: var(--ha-space-4);
         text-align: center;
+      }
+      @media (max-width: 800px) {
+        .toolbar,
+        .toolbar:not(:has(.filter-input)) {
+          grid-template-columns: 1fr;
+        }
       }
     `,
   ];

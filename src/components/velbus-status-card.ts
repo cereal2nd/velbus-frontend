@@ -27,16 +27,17 @@ export class VelbusStatusCard extends LitElement {
               ></ha-svg-icon>
             </div>
             <div class="details">
-              ${
-                this.connected
-                  ? this.hass.localize(
-                      "component.velbus.config_panel.status_online",
-                    )
-                  : this.hass.localize(
-                      "component.velbus.config_panel.status_offline",
-                    )
-              }
-              <br />
+              <span>
+                ${
+                  this.connected
+                    ? this.hass.localize(
+                        "component.velbus.config_panel.status_online",
+                      )
+                    : this.hass.localize(
+                        "component.velbus.config_panel.status_offline",
+                      )
+                }
+              </span>
               <small>
                 ${this.hass.localize("component.velbus.config_panel.modules", {
                   count: this.moduleCount,
@@ -64,6 +65,23 @@ export class VelbusStatusCard extends LitElement {
   }
 
   static styles: CSSResultGroup = css`
+    :host {
+      display: block;
+      height: 100%;
+    }
+    ha-card {
+      align-items: center;
+      display: flex;
+      height: 100%;
+    }
+    ha-card .card-content {
+      box-sizing: border-box;
+      flex: 1;
+      min-width: 0;
+      padding-block: var(--ha-space-3);
+      padding-inline: var(--ha-space-4);
+      width: 100%;
+    }
     .heading {
       align-items: center;
       column-gap: var(--ha-space-4);
@@ -108,9 +126,13 @@ export class VelbusStatusCard extends LitElement {
     }
     .details {
       color: var(--primary-text-color);
+      display: flex;
+      flex-direction: column;
       font-size: var(--ha-font-size-xl);
       font-weight: var(--ha-font-weight-normal);
+      gap: var(--ha-space-1);
       line-height: var(--ha-line-height-condensed);
+      min-width: 0;
     }
     small {
       color: var(--secondary-text-color);

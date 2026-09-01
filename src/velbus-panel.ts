@@ -24,6 +24,7 @@ import type {
   VelbusModuleSummary,
   VelbusPanelConfig,
 } from "./types";
+import { velbusPageStyles } from "./styles";
 import "./views/velbus-config-dashboard";
 import "./views/velbus-module-page";
 
@@ -122,7 +123,7 @@ export class VelbusPanel extends ProvideHassLitMixin(LitElement) {
           .header=${header}
           back-path="/config/integrations/integration/velbus"
         >
-          <div class="container">
+          <div class="container container--module">
             <ha-alert alert-type="error">${this._error}</ha-alert>
           </div>
         </hass-subpage>
@@ -304,25 +305,22 @@ export class VelbusPanel extends ProvideHassLitMixin(LitElement) {
     }
   }
 
-  static styles = css`
-    :host {
-      display: block;
-      height: 100%;
-      --app-header-background-color: var(--sidebar-background-color);
-      --app-header-text-color: var(--sidebar-text-color);
-      --app-header-border-bottom: 1px solid var(--divider-color);
-    }
-    .boot,
-    .container {
-      padding: var(--ha-space-4);
-    }
-    .boot {
-      align-items: center;
-      display: flex;
-      height: 100%;
-      justify-content: center;
-    }
-  `;
+  static styles = [
+    velbusPageStyles,
+    css`
+      :host {
+        display: block;
+        height: 100%;
+      }
+      .boot {
+        align-items: center;
+        display: flex;
+        height: 100%;
+        justify-content: center;
+        padding: var(--ha-space-4);
+      }
+    `,
+  ];
 }
 
 declare global {

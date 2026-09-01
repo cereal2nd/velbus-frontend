@@ -127,29 +127,37 @@ export class VelbusGenericModulePage extends LitElement {
               </ha-alert>
             `
       }
-      <ha-card>
-        <div class="card-header">${this.moduleData.type_name}</div>
-        <div class="card-content">
-          <div class="info-row">
-            ${this.hass.localize("component.velbus.config_panel.module.address")}:
-            ${formatAddress(this.moduleData.address)}
+      <ha-card class="identity-header">
+        <div class="identity">
+          <div class="type-name">${this.moduleData.type_name}</div>
+          <div class="chip-row">
+            <span class="chip">
+              ${this.hass.localize(
+                "component.velbus.config_panel.module.address",
+              )}:
+              ${formatAddress(this.moduleData.address)}
+            </span>
+            ${
+              this.moduleData.sw_version
+                ? html`<span class="chip">
+                    ${this.hass.localize(
+                      "component.velbus.config_panel.module.firmware",
+                    )}:
+                    ${this.moduleData.sw_version}
+                  </span>`
+                : nothing
+            }
+            ${
+              this.moduleData.serial
+                ? html`<span class="chip">
+                    ${this.hass.localize(
+                      "component.velbus.config_panel.module.serial",
+                    )}:
+                    ${this.moduleData.serial}
+                  </span>`
+                : nothing
+            }
           </div>
-          ${
-            this.moduleData.sw_version
-              ? html`<div class="info-row">
-                  ${this.hass.localize("component.velbus.config_panel.module.firmware")}:
-                  ${this.moduleData.sw_version}
-                </div>`
-              : nothing
-          }
-          ${
-            this.moduleData.serial
-              ? html`<div class="info-row">
-                  ${this.hass.localize("component.velbus.config_panel.module.serial")}:
-                  ${this.moduleData.serial}
-                </div>`
-              : nothing
-          }
         </div>
       </ha-card>
       ${
@@ -203,9 +211,12 @@ export class VelbusGenericModulePage extends LitElement {
                 this._channelFallback,
               );
               const disabled = channels[String(channel)]?.enabled === false;
+              const selected = channel === this._actionChannel;
               return html`
                 <ha-md-list-item
                   type="button"
+                  class=${selected ? "selected" : ""}
+                  aria-current=${selected ? "true" : "false"}
                   data-channel=${channel}
                   ?disabled=${this._busy}
                   @click=${this._selectChannel}
@@ -604,16 +615,37 @@ export class VelbusGenericModulePage extends LitElement {
 
   static styles: CSSResultGroup = css`
     :host {
-      display: block;
+      display: flex;
+      flex-direction: column;
+      gap: var(--ha-space-4);
+      min-width: 0;
     }
     ha-alert,
     ha-card {
       display: block;
-      margin-bottom: var(--ha-space-4);
+    }
+    .identity {
+      align-items: center;
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--ha-space-3);
+      padding-block: var(--ha-space-3);
+      padding-inline: var(--ha-space-4);
+    }
+    .type-name {
+      color: var(--ha-card-header-color, var(--primary-text-color));
+      flex: 1;
+      font-size: var(--ha-card-header-font-size, var(--ha-font-size-2xl));
+      font-weight: var(--ha-font-weight-medium);
+      letter-spacing: -0.012em;
+      line-height: var(--ha-line-height-expanded);
+      min-width: 0;
+      overflow-wrap: anywhere;
     }
     .card-header {
+      font-size: var(--ha-font-size-2xl);
       font-weight: var(--ha-font-weight-medium);
-      padding: var(--ha-space-4);
+      padding: var(--ha-space-3) var(--ha-space-4) var(--ha-space-4);
     }
     .card-header .secondary {
       color: var(--secondary-text-color);
@@ -621,17 +653,32 @@ export class VelbusGenericModulePage extends LitElement {
       font-size: var(--ha-font-size-s);
       font-weight: var(--ha-font-weight-normal);
     }
-    .card-content {
-      padding: 0 var(--ha-space-4) var(--ha-space-4);
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--ha-space-2);
     }
-    .info-row {
-      color: var(--secondary-text-color);
-      margin-bottom: var(--ha-space-2);
+    .chip {
+      background: color-mix(
+        in srgb,
+        var(--primary-color) 12%,
+        var(--card-background-color)
+      );
+      border-radius: var(--ha-border-radius-pill);
+      color: var(--primary-text-color);
+      font-size: var(--ha-font-size-s);
+      padding-block: var(--ha-space-1);
+      padding-inline: var(--ha-space-3);
     }
     .module-layout {
+      align-items: start;
       display: grid;
       gap: var(--ha-space-4);
-      grid-template-columns: minmax(220px, 280px) 1fr;
+      grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+    }
+    .channel-panel,
+    .actions-panel {
+      min-width: 0;
     }
     .card-actions {
       padding: 0 var(--ha-space-4) var(--ha-space-4);
@@ -640,8 +687,13 @@ export class VelbusGenericModulePage extends LitElement {
       align-items: center;
       display: grid;
       gap: var(--ha-space-3);
-      grid-template-columns: 1fr minmax(160px, 240px);
-      padding: var(--ha-space-3) var(--ha-space-4);
+      grid-template-columns: minmax(0, 1fr) minmax(180px, 280px);
+      padding: var(--ha-space-4);
+    }
+    .settings-row ha-input,
+    .settings-row ha-select {
+      min-width: 0;
+      width: 100%;
     }
     .center {
       align-items: center;
@@ -655,10 +707,21 @@ export class VelbusGenericModulePage extends LitElement {
     }
     ha-md-list {
       background: none;
-      padding: 0;
+      padding-block: var(--ha-space-1);
+      padding-inline: 0;
     }
-    @media (max-width: 900px) {
+    ha-md-list-item.selected {
+      background-color: color-mix(
+        in srgb,
+        var(--primary-color) 12%,
+        var(--card-background-color)
+      );
+    }
+    @media (max-width: 800px) {
       .module-layout {
+        grid-template-columns: 1fr;
+      }
+      .settings-row {
         grid-template-columns: 1fr;
       }
     }
