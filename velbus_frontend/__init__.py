@@ -8,7 +8,11 @@ from pathlib import Path
 
 webcomponent_name = "velbus-panel"
 entrypoint_js = "velbus-panel.js"
-is_prod_build = False
+
+try:
+    from .constants import IS_PROD_BUILD as is_prod_build
+except ImportError:
+    is_prod_build = False
 
 try:
     __version__ = version("velbus-frontend")

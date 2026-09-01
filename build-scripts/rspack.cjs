@@ -1,0 +1,339 @@
+const { existsSync } = require("fs");
+const path = require("path");
+const rspack = require("@rspack/core");
+// eslint-disable-next-line @typescript-eslint/naming-convention
+const { RsdoctorRspackPlugin } = require("@rsdoctor/rspack-plugin");
+// eslint-disable-next-line @typescript-eslint/naming-convention
+const { StatsWriterPlugin } = require("webpack-stats-plugin");
+const filterStats = require("@bundle-stats/plugin-webpack-filter");
+// eslint-disable-next-line @typescript-eslint/naming-convention
+const TerserPlugin = require("terser-webpack-plugin");
+const { WebpackManifestPlugin } = require("rspack-manifest-plugin");
+const log = require("fancy-log");
+// eslint-disable-next-line @typescript-eslint/naming-convention
+const SafeWebpackBar = require("./safe-webpackbar.cjs");
+const paths = require("./paths.cjs");
+const bundle = require("./bundle.cjs");
+const stubs = require("./stubs.cjs");
+
+class LogStartCompilePlugin {
+  ignoredFirst = false;
+
+  apply(compiler) {
+    compiler.hooks.beforeCompile.tap("LogStartCompilePlugin", () => {
+      if (!this.ignoredFirst) {
+        this.ignoredFirst = true;
+        return;
+      }
+      log("Changes detected. Starting compilation");
+    });
+  }
+}
+
+const createRspackConfig = ({
+  entry,
+  outputPath,
+  publicPath,
+  defineOverlay,
+  isProdBuild,
+  latestBuild,
+  isStatsBuild,
+  dontHash,
+}) => {
+  if (!dontHash) {
+    dontHash = new Set();
+  }
+  const ignorePackages = bundle.ignorePackages({ latestBuild });
+  const litHtmlRoot = path.resolve(__dirname, "../node_modules/lit-html");
+  const litHtmlDevelopmentRoot = path.join(litHtmlRoot, "development");
+  const litDisableDevModeLoader = path.join(__dirname, "lit-disable-dev-mode-loader.cjs");
+  return {
+    mode: isProdBuild ? "production" : "development",
+    target: `browserslist:${latestBuild ? "modern" : "legacy"}`,
+    // For production, generate source maps for accurate stack traces without shipping the
+    // source itself. "cheap-module-source-map" would embed `sourcesContent` — the full
+    // pre-minification source of every module, HA frontend and node_modules alike — which was
+    // ~2/3 of the published wheel. `devtoolModuleFilenameTemplate` below points at GitHub
+    // instead. For development, generate "cheap" versions that map to original line numbers.
+    devtool: isProdBuild ? "nosources-source-map" : "eval-cheap-module-source-map",
+    entry,
+    node: false,
+    module: {
+      rules: [
+        {
+          test: /\.m?js$|\.ts$/,
+          exclude: /node_modules[\\/]core-js/,
+          use: (info) =>
+            [
+              {
+                loader: "babel-loader",
+                options: {
+                  ...bundle.babelOptions({ latestBuild, sw: info.issuerLayer === "sw" }),
+                  cacheDirectory: !isProdBuild,
+                  cacheCompression: false,
+                },
+              },
+              // Minify lit html/svg/css tagged template literals for production.
+              // Must run after swc (TS/decorators stripped, but templates kept at
+              // ES2021) and before babel — otherwise the legacy build lowers
+              // html`` to _taggedTemplateLiteral() calls that can no longer be
+              // matched, leaving legacy templates unminified.
+              isProdBuild && {
+                loader: path.join(__dirname, "minify-template-literals-loader.cjs"),
+              },
+              !latestBuild &&
+                info.resource.startsWith(`${litHtmlDevelopmentRoot}${path.sep}`) && {
+                  loader: litDisableDevModeLoader,
+                },
+              {
+                loader: "builtin:swc-loader",
+                options: bundle.swcOptions(),
+              },
+            ].filter(Boolean),
+          resolve: {
+            fullySpecified: false,
+          },
+        },
+        {
+          test: /\.css$/,
+          type: "asset/source",
+        },
+      ],
+    },
+    optimization: {
+      minimizer: [
+        new TerserPlugin({
+          parallel: true,
+          extractComments: true,
+          terserOptions: bundle.terserOptions({ latestBuild }),
+        }),
+      ],
+      moduleIds: isProdBuild && !isStatsBuild ? "deterministic" : "named",
+      chunkIds: isProdBuild && !isStatsBuild ? "deterministic" : "named",
+      splitChunks: {
+        // Disable splitting for web workers with ESM output
+        // Imports of external chunks are broken
+        chunks: latestBuild
+          ? (chunk) => !chunk.canBeInitial() && !/^.+-worker$/.test(chunk.name)
+          : undefined,
+      },
+    },
+    plugins: [
+      new SafeWebpackBar({ fancy: !isProdBuild }),
+      new WebpackManifestPlugin({
+        // Only include the JS of entrypoints
+        filter: (file) => file.isInitial && !file.name.endsWith(".map"),
+      }),
+      // Babel can miscompile Lit's pre-minified runtime when downleveling to
+      // ES5. Compile lit-html from its development sources for legacy builds,
+      // then let the normal production minifier handle the final bundle.
+      !latestBuild &&
+        new rspack.NormalModuleReplacementPlugin(
+          /^(?:lit-html(?:\/.*)?|\.{1,2}\/.*\.js)$/,
+          (resource) => {
+            if (resource.request === "lit-html") {
+              resource.request = path.join(litHtmlDevelopmentRoot, "lit-html.js");
+              return;
+            }
+            if (resource.request.startsWith("lit-html/")) {
+              if (resource.request.startsWith("lit-html/development/")) {
+                return;
+              }
+              resource.request = path.join(
+                litHtmlDevelopmentRoot,
+                resource.request.slice("lit-html/".length),
+              );
+              return;
+            }
+            if (
+              resource.context.startsWith(`${litHtmlRoot}${path.sep}`) &&
+              resource.context !== litHtmlDevelopmentRoot &&
+              !resource.context.startsWith(`${litHtmlDevelopmentRoot}${path.sep}`)
+            ) {
+              resource.request = path.join(
+                litHtmlDevelopmentRoot,
+                path.relative(litHtmlRoot, path.resolve(resource.context, resource.request)),
+              );
+            }
+          },
+        ),
+      new rspack.DefinePlugin(bundle.definedVars({ isProdBuild, latestBuild, defineOverlay })),
+      new rspack.IgnorePlugin({
+        checkResource(resource, context) {
+          // Only use ignore to intercept imports that we don't control
+          // inside node_module dependencies.
+          if (
+            !context.includes("/node_modules/") ||
+            // calling define.amd will call require("!!webpack amd options")
+            resource.startsWith("!!webpack") ||
+            // loaded by webpack dev server but doesn't exist.
+            resource === "webpack/hot" ||
+            resource.startsWith("@swc/helpers")
+          ) {
+            return false;
+          }
+          let fullPath;
+          try {
+            fullPath = resource.startsWith(".")
+              ? path.resolve(context, resource)
+              : require.resolve(resource);
+          } catch (err) {
+            console.error("Error in Home Assistant ignore plugin", resource, context);
+            throw err;
+          }
+
+          return ignorePackages.some((toIgnorePath) => fullPath.startsWith(toIgnorePath));
+        },
+      }),
+      // Modules the KNX panel does not need, swapped for a stub that says so out loud.
+      // The list, and what to do when one of them turns out to be needed after all, is in
+      // build-scripts/stubs.cjs.
+      ...stubs
+        .moduleReplacements()
+        .map(
+          ({ test, replacement }) => new rspack.NormalModuleReplacementPlugin(test, replacement),
+        ),
+      // core-js ships a Node-only helper that evaluates
+      // `Function('return require("...")')()` when its runtime environment
+      // detection mis-classifies the page as Node. That produces a
+      // ReferenceError on browsers (observed on Safari 14). Since browser
+      // bundles never need to access Node built-in modules, replace it with
+      // a CommonJS no-op stub matching the helper's API (returns undefined).
+      new rspack.NormalModuleReplacementPlugin(
+        /core-js[\\/]internals[\\/]get-built-in-node-module(?:\.js)?$/,
+        path.resolve(__dirname, "get-built-in-node-module-shim.cjs"),
+      ),
+      !isProdBuild && new LogStartCompilePlugin(),
+      isProdBuild &&
+        isStatsBuild &&
+        new RsdoctorRspackPlugin({
+          reportDir: path.join(paths.build_dir, "rsdoctor"),
+          features: ["plugins", "bundle"],
+          supports: {
+            generateTileGraph: true,
+          },
+        }),
+    ].filter(Boolean),
+    resolve: {
+      extensions: [".ts", ".js", ".json"],
+      alias: {
+        "lit/static-html$": "lit/static-html.js",
+        "lit/decorators$": "lit/decorators.js",
+        "lit/directive$": "lit/directive.js",
+        "lit/directives/until$": "lit/directives/until.js",
+        "lit/directives/ref$": "lit/directives/ref.js",
+        "lit/directives/class-map$": "lit/directives/class-map.js",
+        "lit/directives/style-map$": "lit/directives/style-map.js",
+        "lit/directives/if-defined$": "lit/directives/if-defined.js",
+        "lit/directives/guard$": "lit/directives/guard.js",
+        "lit/directives/cache$": "lit/directives/cache.js",
+        "lit/directives/join$": "lit/directives/join.js",
+        "lit/directives/repeat$": "lit/directives/repeat.js",
+        "lit/directives/live$": "lit/directives/live.js",
+        "lit/directives/keyed$": latestBuild
+          ? "lit/directives/keyed.js"
+          : path.resolve(__dirname, "../homeassistant-frontend/src/common/lit/keyed-es5.ts"),
+        "lit/directives/map$": "lit/directives/map.js",
+        "lit/polyfill-support$": "lit/polyfill-support.js",
+        "@lit-labs/virtualizer/layouts/grid": "@lit-labs/virtualizer/layouts/grid.js",
+        "@lit-labs/virtualizer/polyfills/resize-observer-polyfill/ResizeObserver":
+          "@lit-labs/virtualizer/polyfills/resize-observer-polyfill/ResizeObserver.js",
+        "@lit-labs/observers/resize-controller": "@lit-labs/observers/resize-controller.js",
+        "@formatjs/intl-durationformat/should-polyfill$":
+          "@formatjs/intl-durationformat/should-polyfill.js",
+        "@formatjs/intl-durationformat/polyfill-force$":
+          "@formatjs/intl-durationformat/polyfill-force.js",
+        "@formatjs/intl-datetimeformat/should-polyfill":
+          "@formatjs/intl-datetimeformat/should-polyfill.js",
+        "@formatjs/intl-datetimeformat/polyfill-force":
+          "@formatjs/intl-datetimeformat/polyfill-force.js",
+        "@formatjs/intl-displaynames/should-polyfill":
+          "@formatjs/intl-displaynames/should-polyfill.js",
+        "@formatjs/intl-displaynames/polyfill-force":
+          "@formatjs/intl-displaynames/polyfill-force.js",
+        "@formatjs/intl-getcanonicallocales/should-polyfill":
+          "@formatjs/intl-getcanonicallocales/should-polyfill.js",
+        "@formatjs/intl-getcanonicallocales/polyfill-force":
+          "@formatjs/intl-getcanonicallocales/polyfill-force.js",
+        "@formatjs/intl-listformat/should-polyfill": "@formatjs/intl-listformat/should-polyfill.js",
+        "@formatjs/intl-listformat/polyfill-force": "@formatjs/intl-listformat/polyfill-force.js",
+        "@formatjs/intl-locale/should-polyfill": "@formatjs/intl-locale/should-polyfill.js",
+        "@formatjs/intl-locale/polyfill-force": "@formatjs/intl-locale/polyfill-force.js",
+        "@formatjs/intl-numberformat/should-polyfill":
+          "@formatjs/intl-numberformat/should-polyfill.js",
+        "@formatjs/intl-numberformat/polyfill-force":
+          "@formatjs/intl-numberformat/polyfill-force.js",
+        "@formatjs/intl-pluralrules/should-polyfill":
+          "@formatjs/intl-pluralrules/should-polyfill.js",
+        "@formatjs/intl-pluralrules/polyfill-force": "@formatjs/intl-pluralrules/polyfill-force.js",
+        "@formatjs/intl-relativetimeformat/should-polyfill":
+          "@formatjs/intl-relativetimeformat/should-polyfill.js",
+        "@formatjs/intl-relativetimeformat/polyfill-force":
+          "@formatjs/intl-relativetimeformat/polyfill-force.js",
+      },
+      tsConfig: path.resolve(paths.root_dir, "tsconfig.json"),
+    },
+    output: {
+      module: latestBuild,
+      filename: ({ chunk }) => {
+        if (dontHash.has(chunk.name)) {
+          return "[name].js";
+        }
+        return !isProdBuild || isStatsBuild
+          ? "[name].dev.js"
+          : "[name].[contenthash].js";
+      },
+      chunkFilename: isProdBuild && !isStatsBuild ? "[name].[contenthash].js" : "[name].js",
+      assetModuleFilename: isProdBuild && !isStatsBuild ? "[id].[contenthash][ext]" : "[id][ext]",
+      crossOriginLoading: "use-credentials",
+      hashFunction: "xxhash64",
+      path: outputPath,
+      publicPath,
+      // To silence warning in worker plugin
+      globalObject: "self",
+      // Production source maps carry no sources, so point them elsewhere. This repo has two
+      // source roots: its own `src/` on XKNX/knx-frontend, and the homeassistant-frontend
+      // submodule, whose files live on home-assistant/frontend at the pinned commit (GitHub
+      // raw does not serve submodule contents, so they must NOT be addressed under this repo).
+      // Everything else — dependencies, generated files — gets a relative URL under a
+      // non-existent top directory: a clean source tree in dev tools, which stay happy getting
+      // 404s from valid requests.
+      ...Object.fromEntries(
+        ["", "Fallback"].map((v) => [
+          `devtool${v}ModuleFilenameTemplate`,
+          isProdBuild
+            ? (info) => {
+                const unknown = () => `/unknown${path.resolve("/", info.resourcePath)}`;
+                if (!path.isAbsolute(info.absoluteResourcePath) || !existsSync(info.resourcePath)) {
+                  return unknown();
+                }
+                const submodulePrefix = "./homeassistant-frontend/";
+                if (info.resourcePath.startsWith(`${submodulePrefix}src/`)) {
+                  const haURL = bundle.haSourceMapURL();
+                  return haURL
+                    ? new URL(info.resourcePath.slice(submodulePrefix.length), haURL).href
+                    : unknown();
+                }
+                if (info.resourcePath.startsWith("./src/")) {
+                  return new URL(info.resourcePath, bundle.sourceMapURL()).href;
+                }
+                return unknown();
+              }
+            : undefined,
+        ]),
+      ),
+    },
+    experiments: {
+      outputModule: true,
+      topLevelAwait: true,
+    },
+  };
+};
+
+const createVelbusConfig = ({ isProdBuild, latestBuild }) =>
+  createRspackConfig(bundle.config.velbus({ isProdBuild, latestBuild }));
+
+module.exports = {
+  createVelbusConfig,
+  createRspackConfig,
+};

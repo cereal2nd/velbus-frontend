@@ -1,0 +1,11 @@
+node_modules/
+build/
+.yarn/
+*.tsbuildinfo
+velbus_frontend/dist/*.js
+velbus_frontend/dist/*.js.map
+velbus_frontend/dist/*.LICENSE.txt
+velbus_frontend/__pycache__/
+velbus_frontend.egg-info/
+dist/
+.DS_Store

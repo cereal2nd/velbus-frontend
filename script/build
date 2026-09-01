@@ -1,0 +1,8 @@
+#!/bin/sh
+# Builds the frontend for production
+
+set -e
+
+cd "$(dirname "$0")/.."
+
+./node_modules/.bin/gulp build-velbus
