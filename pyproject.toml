@@ -24,12 +24,13 @@ classifiers = [
 
 [tool.setuptools]
 include-package-data = true
+zip-safe = false
 
 [tool.setuptools.packages.find]
 include = ["velbus_frontend*"]
 
 [tool.setuptools.package-data]
-velbus_frontend = ["dist/**/*"]
+velbus_frontend = ["py.typed", "dist/**/*"]
 
 [tool.bumpver]
 current_version = "2026.7.2"
