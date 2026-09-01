@@ -96,7 +96,7 @@ export class VelbusStatusCard extends LitElement {
     .icon {
       --icon-color: var(--primary-color);
       align-items: center;
-      border-radius: var(--ha-border-radius-2xl);
+      border-radius: var(--ha-border-radius-circle);
       display: flex;
       flex-shrink: 0;
       height: 40px;

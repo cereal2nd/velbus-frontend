@@ -57,7 +57,7 @@ export class VelbusModulePage extends LitElement {
         .header=${header}
         .backCallback=${this.onBack}
       >
-        <div class="container container--module">
+        <div class="container">
           ${
             this.loading
               ? html`<div class="center"><ha-spinner></ha-spinner></div>`

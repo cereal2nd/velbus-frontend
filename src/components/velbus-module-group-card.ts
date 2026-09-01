@@ -1,9 +1,15 @@
-import { mdiChevronDown, mdiViewModule } from "@mdi/js";
 import type { CSSResultGroup, TemplateResult } from "lit";
 import { css, html, LitElement } from "lit";
 import { customElement, property } from "lit/decorators";
+import { styleMap } from "lit/directives/style-map";
 import type { LocalizeKeys } from "@ha/common/translations/localize";
+import type {
+  HASSDomCurrentTargetEvent,
+  HASSDomEvent,
+} from "@ha/common/dom/fire_event";
+import "@ha/components/ha-expansion-panel";
 import "@ha/components/ha-icon-next";
+import "@ha/components/ha-label";
 import "@ha/components/ha-md-list";
 import "@ha/components/ha-md-list-item";
 import "@ha/components/ha-svg-icon";
@@ -19,6 +25,7 @@ import {
   MODULE_GROUP_ICONS,
   MODULE_GROUP_TRANSLATION_KEYS,
 } from "../util/module-groups";
+import { velbusIconWellStyles } from "../styles";
 
 @customElement("velbus-module-group-card")
 export class VelbusModuleGroupCard extends LitElement {
@@ -39,209 +46,120 @@ export class VelbusModuleGroupCard extends LitElement {
   protected render(): TemplateResult {
     const accent = MODULE_GROUP_ACCENT[this.groupId];
     return html`
-      <ha-card class="nav-card" style="--group-accent: ${accent}">
-        <details .open=${this.open}>
-          <summary class="card-header" @click=${this._summaryClick}>
-            <div class="header-leading">
-              <div class="group-icon">
-                <ha-svg-icon
-                  .path=${MODULE_GROUP_ICONS[this.groupId]}
-                ></ha-svg-icon>
-              </div>
-              <span class="title">
-                ${this.hass.localize(
-                  MODULE_GROUP_TRANSLATION_KEYS[this.groupId] as LocalizeKeys,
-                )}
-              </span>
-            </div>
-            <div class="header-trailing">
-              <span class="count-badge" aria-hidden="true">
-                <ha-svg-icon .path=${mdiViewModule}></ha-svg-icon>
-                <span class="count-value">${this.modules.length}</span>
-              </span>
-              <ha-svg-icon
-                class="chevron"
-                .path=${mdiChevronDown}
-              ></ha-svg-icon>
-            </div>
-          </summary>
-          <div class="card-content">
-            <ha-md-list>
-              ${this.modules.map(
-                (module) => html`
-                  <ha-md-list-item
-                    type="button"
-                    data-address=${module.address}
-                    @click=${this._select}
+      <ha-card class="nav-card">
+        <ha-expansion-panel
+          .expanded=${this.open}
+          left-chevron
+          @expanded-changed=${this._expandedChanged}
+        >
+          <div
+            slot="leading-icon"
+            class="icon-background"
+            style=${styleMap({ backgroundColor: accent })}
+          >
+            <ha-svg-icon
+              .path=${MODULE_GROUP_ICONS[this.groupId]}
+            ></ha-svg-icon>
+          </div>
+          <div slot="header" class="group-header">
+            ${this.hass.localize(
+              MODULE_GROUP_TRANSLATION_KEYS[this.groupId] as LocalizeKeys,
+            )}
+            <span class="secondary">
+              ${this.hass.localize("component.velbus.config_panel.modules", {
+                count: this.modules.length,
+              })}
+            </span>
+          </div>
+          <ha-md-list>
+            ${this.modules.map(
+              (module) => html`
+                <ha-md-list-item
+                  type="button"
+                  data-address=${module.address}
+                  @click=${this._select}
+                >
+                  <div
+                    slot="start"
+                    class="icon-background small"
+                    style=${styleMap({ backgroundColor: accent })}
                   >
                     <ha-svg-icon
-                      slot="start"
-                      class="module-icon"
                       .path=${moduleIconForType(module.type_name)}
                     ></ha-svg-icon>
-                    <span slot="headline"
-                      >${module.name || module.type_name}</span
-                    >
-                    <span slot="supporting-text">${module.type_name}</span>
-                    <span slot="trailing-supporting-text" class="address">
-                      ${formatAddress(module.address)}
-                    </span>
-                    <ha-icon-next slot="end"></ha-icon-next>
-                  </ha-md-list-item>
-                `,
-              )}
-            </ha-md-list>
-          </div>
-        </details>
+                  </div>
+                  <span slot="headline"
+                    >${module.name || module.type_name}</span
+                  >
+                  <span slot="supporting-text">${module.type_name}</span>
+                  <ha-label slot="trailing-supporting-text" dense>
+                    ${formatAddress(module.address)}
+                  </ha-label>
+                  <ha-icon-next slot="end"></ha-icon-next>
+                </ha-md-list-item>
+              `,
+            )}
+          </ha-md-list>
+        </ha-expansion-panel>
       </ha-card>
     `;
   }
 
-  private _summaryClick(ev: Event): void {
-    ev.preventDefault();
-    this.onToggle?.(this.groupId);
+  private _expandedChanged(ev: HASSDomEvent<{ expanded: boolean }>): void {
+    ev.stopPropagation();
+    if (ev.detail.expanded !== this.open) {
+      this.onToggle?.(this.groupId);
+    }
   }
 
-  private _select(ev: Event): void {
-    const address = Number((ev.currentTarget as HTMLElement).dataset.address);
+  private _select(ev: HASSDomCurrentTargetEvent<HTMLElement>): void {
+    const address = Number(ev.currentTarget.dataset.address);
     if (!Number.isNaN(address)) {
       this.onSelect?.(address);
     }
   }
 
-  static styles: CSSResultGroup = css`
-    :host {
-      display: block;
-      min-width: 0;
-    }
-    .nav-card {
-      overflow: hidden;
-      width: 100%;
-    }
-    details {
-      display: block;
-    }
-    summary {
-      cursor: pointer;
-      list-style: none;
-    }
-    summary::-webkit-details-marker {
-      display: none;
-    }
-    .nav-card .card-content {
-      border-top: 1px solid var(--divider-color);
-      padding: 0;
-    }
-    .card-header {
-      align-items: center;
-      background: color-mix(
-        in srgb,
-        var(--group-accent) 12%,
-        var(--card-background-color)
-      );
-      border-inline-start: 4px solid var(--group-accent);
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--ha-space-2);
-      justify-content: space-between;
-      padding: var(--ha-space-4);
-    }
-    .header-leading,
-    .header-trailing {
-      align-items: center;
-      display: flex;
-      gap: var(--ha-space-3);
-    }
-    .header-leading {
-      flex: 1;
-      min-width: 0;
-    }
-    .header-trailing {
-      flex-shrink: 0;
-      gap: var(--ha-space-2);
-      margin-inline-start: auto;
-    }
-    .group-icon {
-      align-items: center;
-      background: color-mix(
-        in srgb,
-        var(--group-accent) 22%,
-        var(--card-background-color)
-      );
-      border-radius: var(--ha-border-radius-lg);
-      color: var(--group-accent);
-      display: flex;
-      flex-shrink: 0;
-      height: 40px;
-      justify-content: center;
-      width: 40px;
-    }
-    .group-icon ha-svg-icon {
-      height: 22px;
-      width: 22px;
-    }
-    .title {
-      color: var(--primary-text-color);
-      font-size: var(--ha-font-size-l);
-      font-weight: var(--ha-font-weight-medium);
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .count-badge {
-      align-items: center;
-      background: color-mix(
-        in srgb,
-        var(--group-accent) 18%,
-        var(--card-background-color)
-      );
-      border-radius: var(--ha-border-radius-pill);
-      color: var(--group-accent);
-      display: flex;
-      flex-shrink: 0;
-      font-size: var(--ha-font-size-s);
-      font-weight: var(--ha-font-weight-medium);
-      gap: var(--ha-space-1);
-      line-height: 1;
-      padding: var(--ha-space-1) var(--ha-space-2);
-    }
-    .count-badge ha-svg-icon {
-      height: 16px;
-      width: 16px;
-    }
-    .chevron {
-      color: var(--secondary-text-color);
-      flex-shrink: 0;
-      transition: transform var(--ha-animation-duration-fast) ease;
-    }
-    details[open] .chevron {
-      transform: rotate(180deg);
-    }
-    ha-md-list {
-      background: none;
-      padding: var(--ha-space-1) 0;
-    }
-    ha-md-list-item {
-      --md-item-overflow: visible;
-    }
-    .module-icon {
-      color: var(--group-accent);
-    }
-    .address {
-      background: color-mix(
-        in srgb,
-        var(--group-accent) 14%,
-        var(--secondary-background-color)
-      );
-      border-radius: var(--ha-border-radius-md);
-      color: var(--primary-text-color);
-      font-size: var(--ha-font-size-s);
-      max-width: 100%;
-      overflow-wrap: anywhere;
-      padding: var(--ha-space-1) var(--ha-space-2);
-    }
-  `;
+  static styles: CSSResultGroup = [
+    velbusIconWellStyles,
+    css`
+      :host {
+        display: block;
+        min-width: 0;
+      }
+      .nav-card {
+        overflow: hidden;
+        width: 100%;
+      }
+      ha-expansion-panel {
+        --expansion-panel-content-padding: 0;
+        --expansion-panel-summary-padding: var(--ha-space-3) var(--ha-space-4);
+      }
+      .group-header {
+        display: flex;
+        flex-direction: column;
+        gap: var(--ha-space-1);
+        min-width: 0;
+      }
+      .secondary {
+        color: var(--secondary-text-color);
+        font-size: var(--ha-font-size-s);
+        font-weight: var(--ha-font-weight-normal);
+      }
+      ha-md-list {
+        background: none;
+        padding: var(--ha-space-1) 0;
+      }
+      ha-md-list-item {
+        --md-item-overflow: visible;
+      }
+      ha-label {
+        max-width: 100%;
+      }
+      ha-icon-next {
+        color: var(--secondary-text-color);
+      }
+    `,
+  ];
 }
 
 declare global {

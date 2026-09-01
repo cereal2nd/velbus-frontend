@@ -1,14 +1,27 @@
-import { mdiDeleteOutline, mdiFlash, mdiPlus } from "@mdi/js";
+import {
+  mdiBarcode,
+  mdiChip,
+  mdiDelete,
+  mdiIdentifier,
+  mdiLightningBolt,
+  mdiPlus,
+} from "@mdi/js";
 import type { CSSResultGroup, PropertyValues, TemplateResult } from "lit";
 import { css, html, LitElement, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators";
+import { classMap } from "lit/directives/class-map";
+import { styleMap } from "lit/directives/style-map";
+import type { HASSDomCurrentTargetEvent } from "@ha/common/dom/fire_event";
 import type { HaSelectSelectEvent } from "@ha/components/ha-select";
 import "@ha/components/ha-alert";
 import "@ha/components/ha-button";
 import "@ha/components/ha-card";
+import "@ha/components/ha-icon-button";
+import "@ha/components/ha-label";
 import "@ha/components/ha-md-list";
 import "@ha/components/ha-md-list-item";
 import "@ha/components/ha-select";
+import "@ha/components/ha-settings-row";
 import "@ha/components/ha-spinner";
 import "@ha/components/ha-svg-icon";
 import "@ha/components/ha-switch";
@@ -33,7 +46,10 @@ import type {
   VelbusModuleSummary,
   VelbusSchemaSection,
 } from "../types";
+import { velbusEmptyStateStyles, velbusIconWellStyles } from "../styles";
 import { formatAddress } from "../util/format";
+import { moduleIconForType } from "../util/icons";
+import { groupForModule, MODULE_GROUP_ACCENT } from "../util/module-groups";
 import {
   channelLabel,
   channelNumbers,
@@ -129,34 +145,44 @@ export class VelbusGenericModulePage extends LitElement {
       }
       <ha-card class="identity-header">
         <div class="identity">
-          <div class="type-name">${this.moduleData.type_name}</div>
-          <div class="chip-row">
-            <span class="chip">
-              ${this.hass.localize(
-                "component.velbus.config_panel.module.address",
-              )}:
-              ${formatAddress(this.moduleData.address)}
-            </span>
-            ${
-              this.moduleData.sw_version
-                ? html`<span class="chip">
-                    ${this.hass.localize(
-                      "component.velbus.config_panel.module.firmware",
-                    )}:
-                    ${this.moduleData.sw_version}
-                  </span>`
-                : nothing
-            }
-            ${
-              this.moduleData.serial
-                ? html`<span class="chip">
-                    ${this.hass.localize(
-                      "component.velbus.config_panel.module.serial",
-                    )}:
-                    ${this.moduleData.serial}
-                  </span>`
-                : nothing
-            }
+          <div
+            class="icon-background"
+            style=${styleMap({
+              backgroundColor:
+                MODULE_GROUP_ACCENT[groupForModule(this.moduleData.type_name)],
+            })}
+          >
+            <ha-svg-icon
+              .path=${moduleIconForType(this.moduleData.type_name)}
+            ></ha-svg-icon>
+          </div>
+          <div class="identity-text">
+            <div class="type-name">${this.moduleData.type_name}</div>
+            <div class="chip-row">
+              <ha-label dense>
+                <ha-svg-icon slot="icon" .path=${mdiIdentifier}></ha-svg-icon>
+                ${formatAddress(this.moduleData.address)}
+              </ha-label>
+              ${
+                this.moduleData.sw_version
+                  ? html`<ha-label dense>
+                      <ha-svg-icon slot="icon" .path=${mdiChip}></ha-svg-icon>
+                      ${this.moduleData.sw_version}
+                    </ha-label>`
+                  : nothing
+              }
+              ${
+                this.moduleData.serial
+                  ? html`<ha-label dense>
+                      <ha-svg-icon
+                        slot="icon"
+                        .path=${mdiBarcode}
+                      ></ha-svg-icon>
+                      ${this.moduleData.serial}
+                    </ha-label>`
+                  : nothing
+              }
+            </div>
           </div>
         </div>
       </ha-card>
@@ -215,12 +241,18 @@ export class VelbusGenericModulePage extends LitElement {
               return html`
                 <ha-md-list-item
                   type="button"
-                  class=${selected ? "selected" : ""}
+                  class=${classMap({ selected })}
                   aria-current=${selected ? "true" : "false"}
                   data-channel=${channel}
                   ?disabled=${this._busy}
                   @click=${this._selectChannel}
                 >
+                  <div
+                    slot="start"
+                    class="channel-badge ${classMap({ selected, disabled })}"
+                  >
+                    ${channel}
+                  </div>
                   <span slot="headline">${label}</span>
                   <span slot="supporting-text">
                     ${
@@ -296,8 +328,8 @@ export class VelbusGenericModulePage extends LitElement {
       )
     ) {
       rows.push(html`
-        <div class="settings-row">
-          <span>
+        <ha-settings-row>
+          <span slot="heading">
             ${this.hass.localize("component.velbus.config_panel.module.channel_name")}
           </span>
           <ha-input
@@ -307,15 +339,15 @@ export class VelbusGenericModulePage extends LitElement {
             data-channel=${channel}
             @change=${this._nameChanged}
           ></ha-input>
-        </div>
+        </ha-settings-row>
       `);
     }
 
     if (channelNumbers(contact).includes(channel)) {
       const current = channels[String(channel)]?.contact || "NO";
       rows.push(html`
-        <div class="settings-row">
-          <span>
+        <ha-settings-row>
+          <span slot="heading">
             ${this.hass.localize("component.velbus.config_panel.module.contact")}
           </span>
           <ha-select
@@ -328,14 +360,14 @@ export class VelbusGenericModulePage extends LitElement {
             data-channel=${channel}
             @selected=${this._contactChanged}
           ></ha-select>
-        </div>
+        </ha-settings-row>
       `);
     }
 
     if (selectedSupportsEnable) {
       rows.push(html`
-        <div class="settings-row">
-          <span>
+        <ha-settings-row>
+          <span slot="heading">
             ${this.hass.localize("component.velbus.config_panel.module.enabled")}
           </span>
           <ha-switch
@@ -344,11 +376,13 @@ export class VelbusGenericModulePage extends LitElement {
             data-channel=${channel}
             @change=${this._enabledChanged}
           ></ha-switch>
-        </div>
+        </ha-settings-row>
       `);
     }
 
-    return rows;
+    return rows.length
+      ? html`<div class="channel-settings">${rows}</div>`
+      : nothing;
   }
 
   private _renderActionSlots(actions: VelbusActionSlot[], editable: boolean) {
@@ -357,8 +391,8 @@ export class VelbusGenericModulePage extends LitElement {
     }
     if (this._actionsLoadedChannel !== this._actionChannel) {
       return html`
-        <div class="center">
-          <ha-svg-icon .path=${mdiFlash}></ha-svg-icon>
+        <div class="empty-state">
+          <ha-svg-icon .path=${mdiLightningBolt}></ha-svg-icon>
           <p>
             ${this.hass.localize(
               "component.velbus.config_panel.module.select_channel_actions",
@@ -369,8 +403,8 @@ export class VelbusGenericModulePage extends LitElement {
     }
     if (!actions.length) {
       return html`
-        <div class="center">
-          <ha-svg-icon .path=${mdiFlash}></ha-svg-icon>
+        <div class="empty-state">
+          <ha-svg-icon .path=${mdiLightningBolt}></ha-svg-icon>
           <p>
             ${this.hass.localize("component.velbus.config_panel.module.no_actions")}
           </p>
@@ -382,7 +416,15 @@ export class VelbusGenericModulePage extends LitElement {
         ${actions.map(
           (slot) => html`
             <ha-md-list-item>
-              <span slot="overline">${slot.slot}</span>
+              <div slot="start" class="icon-background small">
+                <ha-svg-icon .path=${mdiLightningBolt}></ha-svg-icon>
+              </div>
+              <span slot="overline">
+                ${this.hass.localize(
+                  "component.velbus.config_panel.module.slot",
+                  { slot: slot.slot },
+                )}
+              </span>
               <span slot="headline">
                 ${
                   slot.action_label ||
@@ -398,22 +440,16 @@ export class VelbusGenericModulePage extends LitElement {
               ${
                 editable
                   ? html`
-                      <ha-button
+                      <ha-icon-button
                         slot="end"
-                        variant="danger"
-                        appearance="plain"
+                        .path=${mdiDelete}
                         .disabled=${this._busy}
-                        data-slot=${slot.slot}
-                        @click=${this._clearSlot}
-                      >
-                        <ha-svg-icon
-                          slot="start"
-                          .path=${mdiDeleteOutline}
-                        ></ha-svg-icon>
-                        ${this.hass.localize(
+                        .label=${this.hass.localize(
                           "component.velbus.config_panel.module.clear_action",
                         )}
-                      </ha-button>
+                        data-slot=${slot.slot}
+                        @click=${this._clearSlot}
+                      ></ha-icon-button>
                     `
                   : nothing
               }
@@ -436,8 +472,8 @@ export class VelbusGenericModulePage extends LitElement {
         </div>
         ${namedChannelEntries(channelNames).map(
           (channelEntry: VelbusChannelMeta) => html`
-            <div class="settings-row">
-              <span>${channelEntry.name}</span>
+            <ha-settings-row>
+              <span slot="heading">${channelEntry.name}</span>
               <ha-input
                 .value=${channels[String(channelEntry.channel)]?.name || ""}
                 maxlength="16"
@@ -445,7 +481,7 @@ export class VelbusGenericModulePage extends LitElement {
                 data-channel=${channelEntry.channel}
                 @change=${this._nameChanged}
               ></ha-input>
-            </div>
+            </ha-settings-row>
           `,
         )}
       </ha-card>
@@ -472,8 +508,8 @@ export class VelbusGenericModulePage extends LitElement {
             this._channelFallback,
           );
           return html`
-            <div class="settings-row">
-              <span>${label}</span>
+            <ha-settings-row>
+              <span slot="heading">${label}</span>
               <ha-select
                 .value=${current}
                 .disabled=${!editable}
@@ -484,7 +520,7 @@ export class VelbusGenericModulePage extends LitElement {
                 data-channel=${channel}
                 @selected=${this._contactChanged}
               ></ha-select>
-            </div>
+            </ha-settings-row>
           `;
         })}
       </ha-card>
@@ -524,8 +560,10 @@ export class VelbusGenericModulePage extends LitElement {
     }
   }
 
-  private async _selectChannel(ev: Event): Promise<void> {
-    const channel = Number((ev.currentTarget as HTMLElement).dataset.channel);
+  private async _selectChannel(
+    ev: HASSDomCurrentTargetEvent<HTMLElement>,
+  ): Promise<void> {
+    const channel = Number(ev.currentTarget.dataset.channel);
     if (
       this._busy ||
       Number.isNaN(channel) ||
@@ -557,8 +595,10 @@ export class VelbusGenericModulePage extends LitElement {
     });
   }
 
-  private async _clearSlot(ev: Event): Promise<void> {
-    const slot = Number((ev.currentTarget as HTMLElement).dataset.slot);
+  private async _clearSlot(
+    ev: HASSDomCurrentTargetEvent<HTMLElement>,
+  ): Promise<void> {
+    const slot = Number(ev.currentTarget.dataset.slot);
     if (Number.isNaN(slot)) {
       return;
     }
@@ -573,29 +613,31 @@ export class VelbusGenericModulePage extends LitElement {
     });
   }
 
-  private async _nameChanged(ev: Event): Promise<void> {
-    const target = ev.currentTarget as HaInput;
-    const channel = Number(target.dataset.channel);
+  private async _nameChanged(
+    ev: HASSDomCurrentTargetEvent<HaInput>,
+  ): Promise<void> {
+    const channel = Number(ev.currentTarget.dataset.channel);
     await this._withBusy(async () => {
       await saveChannelName(
         this.callWs,
         this.moduleAddress,
         channel,
-        target.value ?? "",
+        ev.currentTarget.value ?? "",
       );
       await this._reloadModule();
     });
   }
 
-  private async _enabledChanged(ev: Event): Promise<void> {
-    const target = ev.currentTarget as HTMLInputElement;
-    const channel = Number(target.dataset.channel);
+  private async _enabledChanged(
+    ev: HASSDomCurrentTargetEvent<HTMLInputElement>,
+  ): Promise<void> {
+    const channel = Number(ev.currentTarget.dataset.channel);
     await this._withBusy(async () => {
       await saveChannelEnabled(
         this.callWs,
         this.moduleAddress,
         channel,
-        target.checked,
+        ev.currentTarget.checked,
       );
       await this._reloadModule();
       if (this._actionsLoadedChannel === channel) {
@@ -605,7 +647,7 @@ export class VelbusGenericModulePage extends LitElement {
   }
 
   private async _contactChanged(ev: HaSelectSelectEvent): Promise<void> {
-    const channel = Number((ev.currentTarget as HTMLElement).dataset.channel);
+    const channel = Number(ev.currentTarget.dataset.channel);
     const value = String(ev.detail.value ?? "");
     await this._withBusy(async () => {
       await saveChannelContact(this.callWs, this.moduleAddress, channel, value);
@@ -613,119 +655,139 @@ export class VelbusGenericModulePage extends LitElement {
     });
   }
 
-  static styles: CSSResultGroup = css`
-    :host {
-      display: flex;
-      flex-direction: column;
-      gap: var(--ha-space-4);
-      min-width: 0;
-    }
-    ha-alert,
-    ha-card {
-      display: block;
-    }
-    .identity {
-      align-items: center;
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--ha-space-3);
-      padding-block: var(--ha-space-3);
-      padding-inline: var(--ha-space-4);
-    }
-    .type-name {
-      color: var(--ha-card-header-color, var(--primary-text-color));
-      flex: 1;
-      font-size: var(--ha-card-header-font-size, var(--ha-font-size-2xl));
-      font-weight: var(--ha-font-weight-medium);
-      letter-spacing: -0.012em;
-      line-height: var(--ha-line-height-expanded);
-      min-width: 0;
-      overflow-wrap: anywhere;
-    }
-    .card-header {
-      font-size: var(--ha-font-size-2xl);
-      font-weight: var(--ha-font-weight-medium);
-      padding: var(--ha-space-3) var(--ha-space-4) var(--ha-space-4);
-    }
-    .card-header .secondary {
-      color: var(--secondary-text-color);
-      display: block;
-      font-size: var(--ha-font-size-s);
-      font-weight: var(--ha-font-weight-normal);
-    }
-    .chip-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--ha-space-2);
-    }
-    .chip {
-      background: color-mix(
-        in srgb,
-        var(--primary-color) 12%,
-        var(--card-background-color)
-      );
-      border-radius: var(--ha-border-radius-pill);
-      color: var(--primary-text-color);
-      font-size: var(--ha-font-size-s);
-      padding-block: var(--ha-space-1);
-      padding-inline: var(--ha-space-3);
-    }
-    .module-layout {
-      align-items: start;
-      display: grid;
-      gap: var(--ha-space-4);
-      grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
-    }
-    .channel-panel,
-    .actions-panel {
-      min-width: 0;
-    }
-    .card-actions {
-      padding: 0 var(--ha-space-4) var(--ha-space-4);
-    }
-    .settings-row {
-      align-items: center;
-      display: grid;
-      gap: var(--ha-space-3);
-      grid-template-columns: minmax(0, 1fr) minmax(180px, 280px);
-      padding: var(--ha-space-4);
-    }
-    .settings-row ha-input,
-    .settings-row ha-select {
-      min-width: 0;
-      width: 100%;
-    }
-    .center {
-      align-items: center;
-      color: var(--secondary-text-color);
-      display: flex;
-      flex-direction: column;
-      gap: var(--ha-space-3);
-      justify-content: center;
-      padding: var(--ha-space-8);
-      text-align: center;
-    }
-    ha-md-list {
-      background: none;
-      padding-block: var(--ha-space-1);
-      padding-inline: 0;
-    }
-    ha-md-list-item.selected {
-      background-color: color-mix(
-        in srgb,
-        var(--primary-color) 12%,
-        var(--card-background-color)
-      );
-    }
-    @media (max-width: 800px) {
+  static styles: CSSResultGroup = [
+    velbusIconWellStyles,
+    velbusEmptyStateStyles,
+    css`
+      :host {
+        display: flex;
+        flex-direction: column;
+        gap: var(--ha-space-4);
+        min-width: 0;
+      }
+      ha-alert,
+      ha-card {
+        display: block;
+      }
+      .identity {
+        align-items: center;
+        display: flex;
+        gap: var(--ha-space-4);
+        padding-block: var(--ha-space-4);
+        padding-inline: var(--ha-space-4);
+      }
+      .identity-text {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        gap: var(--ha-space-2);
+        min-width: 0;
+      }
+      .type-name {
+        color: var(--ha-card-header-color, var(--primary-text-color));
+        font-size: var(--ha-card-header-font-size, var(--ha-font-size-2xl));
+        font-weight: var(--ha-font-weight-medium);
+        letter-spacing: -0.012em;
+        line-height: var(--ha-line-height-expanded);
+        overflow-wrap: anywhere;
+      }
+      .card-header {
+        font-size: var(--ha-font-size-2xl);
+        font-weight: var(--ha-font-weight-medium);
+        padding: var(--ha-space-3) var(--ha-space-4) var(--ha-space-4);
+      }
+      .card-header .secondary {
+        color: var(--secondary-text-color);
+        display: block;
+        font-size: var(--ha-font-size-s);
+        font-weight: var(--ha-font-weight-normal);
+      }
+      .chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--ha-space-2);
+      }
       .module-layout {
-        grid-template-columns: 1fr;
+        align-items: start;
+        display: grid;
+        gap: var(--ha-space-4);
+        grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
       }
-      .settings-row {
-        grid-template-columns: 1fr;
+      .channel-panel,
+      .actions-panel {
+        min-width: 0;
       }
-    }
-  `;
+      .card-actions {
+        padding: 0 var(--ha-space-4) var(--ha-space-4);
+      }
+      .channel-settings {
+        border-block-start: 1px solid var(--divider-color);
+        padding-block: var(--ha-space-2);
+      }
+      ha-settings-row {
+        padding-inline: var(--ha-space-4);
+      }
+      ha-settings-row ha-input,
+      ha-settings-row ha-select {
+        min-width: 0;
+        width: min(100%, 280px);
+      }
+      .center {
+        align-items: center;
+        display: flex;
+        justify-content: center;
+        padding: var(--ha-space-8);
+      }
+      .empty-state {
+        padding: var(--ha-space-8);
+      }
+      .channel-badge {
+        align-items: center;
+        background: color-mix(
+          in srgb,
+          var(--primary-color) 18%,
+          var(--card-background-color)
+        );
+        border-radius: var(--ha-border-radius-circle);
+        color: var(--primary-color);
+        display: flex;
+        flex-shrink: 0;
+        font-size: var(--ha-font-size-s);
+        font-weight: var(--ha-font-weight-medium);
+        height: 36px;
+        justify-content: center;
+        width: 36px;
+      }
+      .channel-badge.selected {
+        background: var(--primary-color);
+        color: var(--primary-text-color-on-primary, #fff);
+      }
+      .channel-badge.disabled {
+        opacity: 0.55;
+      }
+      ha-md-list {
+        background: none;
+        padding-block: var(--ha-space-1);
+        padding-inline: 0;
+      }
+      ha-md-list-item.selected {
+        background-color: color-mix(
+          in srgb,
+          var(--primary-color) 12%,
+          var(--card-background-color)
+        );
+      }
+      @media (max-width: 800px) {
+        .module-layout {
+          grid-template-columns: 1fr;
+        }
+        ha-settings-row ha-input,
+        ha-settings-row ha-select {
+          width: 100%;
+        }
+      }
+    `,
+  ];
 }
 
 declare global {

@@ -123,7 +123,7 @@ export class VelbusPanel extends ProvideHassLitMixin(LitElement) {
           .header=${header}
           back-path="/config/integrations/integration/velbus"
         >
-          <div class="container container--module">
+          <div class="container">
             <ha-alert alert-type="error">${this._error}</ha-alert>
           </div>
         </hass-subpage>

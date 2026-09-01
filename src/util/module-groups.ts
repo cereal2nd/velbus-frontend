@@ -41,12 +41,12 @@ export const MODULE_GROUP_ICONS: Record<ModuleGroupId, string> = {
 };
 
 export const MODULE_GROUP_ACCENT: Record<ModuleGroupId, string> = {
-  relays: "var(--primary-color)",
-  inputs: "var(--info-color)",
-  covers: "var(--warning-color)",
-  dimmers: "var(--amber-color, #ffa000)",
-  sensors: "var(--success-color)",
-  other: "var(--secondary-text-color)",
+  relays: "#518C43",
+  inputs: "#3263C3",
+  covers: "#E48629",
+  dimmers: "#F1C447",
+  sensors: "#B1345C",
+  other: "#607D8B",
 };
 
 export function groupForModule(typeName = ""): ModuleGroupId {
