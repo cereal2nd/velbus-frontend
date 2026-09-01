@@ -2,11 +2,11 @@ import type { CSSResultGroup, TemplateResult } from "lit";
 import { css, html, LitElement } from "lit";
 import { customElement, property } from "lit/decorators";
 import { styleMap } from "lit/directives/style-map";
-import type { LocalizeKeys } from "@ha/common/translations/localize";
 import type {
   HASSDomCurrentTargetEvent,
   HASSDomEvent,
 } from "@ha/common/dom/fire_event";
+import type { LocalizeKeys } from "@ha/common/translations/localize";
 import "@ha/components/ha-expansion-panel";
 import "@ha/components/ha-icon-next";
 import "@ha/components/ha-label";

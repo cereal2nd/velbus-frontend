@@ -7,8 +7,8 @@ import {
 import type { CSSResultGroup, TemplateResult } from "lit";
 import { css, html, LitElement, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators";
-import type { LocalizeKeys } from "@ha/common/translations/localize";
 import type { HASSDomCurrentTargetEvent } from "@ha/common/dom/fire_event";
+import type { LocalizeKeys } from "@ha/common/translations/localize";
 import "@ha/components/chips/ha-chip-set";
 import "@ha/components/chips/ha-filter-chip";
 import "@ha/components/ha-card";

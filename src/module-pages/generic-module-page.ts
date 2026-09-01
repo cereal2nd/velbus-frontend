@@ -646,7 +646,9 @@ export class VelbusGenericModulePage extends LitElement {
     });
   }
 
-  private async _contactChanged(ev: HaSelectSelectEvent): Promise<void> {
+  private async _contactChanged(
+    ev: HaSelectSelectEvent & HASSDomCurrentTargetEvent<HTMLElement>,
+  ): Promise<void> {
     const channel = Number(ev.currentTarget.dataset.channel);
     const value = String(ev.detail.value ?? "");
     await this._withBusy(async () => {
