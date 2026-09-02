@@ -19,6 +19,8 @@ jobs:
         run: ./script/bootstrap
       - name: Lint
         run: yarn lint
+        env:
+          SKIP_FETCH_NIGHTLY_TRANSLATIONS: "1"
 
   build:
     runs-on: ubuntu-latest
