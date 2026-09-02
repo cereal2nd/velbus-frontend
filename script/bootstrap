@@ -6,6 +6,10 @@ set -e
 cd "$(dirname "$0")/.."
 
 if [ ! -d "./homeassistant-frontend/src" ]; then
+  git submodule update --init --recursive
+fi
+
+if [ ! -d "./homeassistant-frontend/src" ]; then
   echo "homeassistant-frontend submodule or symlink is missing"
   exit 1
 fi

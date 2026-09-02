@@ -11,6 +11,7 @@ Lit/TypeScript config panel for the Home Assistant Velbus integration. The built
 ## Bootstrap
 
 ```sh
+git submodule update --init
 ./script/bootstrap
 ```
 
